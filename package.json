@@ -1,0 +1,33 @@
+{
+  "name": "pierrebetsalgo",
+  "description": "Algo for guessing next bets ",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nicolasdaudin/pierrebetsalgo.git"
+  },
+  "author": "Nicolas Daudin for Webaddikt",
+  "license": "MIT",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "async": "^2.3.0",
+    "body-parser": "^1.14.1",
+    "express": "^4.13.3",
+    "moment": "^2.18.1",
+    "mongoose": "^4.9.7",
+    "morgan": "^1.6.1",
+    "nodemon": "^1.11.0"
+  },
+  "devDependencies": {
+    "eslint": "^4.11.0",
+    "eslint-config-standard": "^10.2.1",
+    "eslint-plugin-import": "^2.8.0",
+    "eslint-plugin-node": "^5.2.1",
+    "eslint-plugin-promise": "^3.6.0",
+    "eslint-plugin-react": "^7.5.1",
+    "eslint-plugin-standard": "^3.0.1"
+  }
+}
