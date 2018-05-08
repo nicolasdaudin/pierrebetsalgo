@@ -34,6 +34,7 @@ app.get('/', function (req, res) {
 
 /** DATABASE and FINAL SERVER INIT **/ 
 var database_url = process.env.DATABASE_URL;
+console.log('Trying to connect to',database_url);
 //mongoose.connect(database_url,{ config: { autoIndex: false } });
 mongoose.connect(database_url);
 var db = mongoose.connection;
