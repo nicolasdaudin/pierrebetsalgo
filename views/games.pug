@@ -1,0 +1,36 @@
+-function prettyDate(dateString){
+	-var date = new Date(dateString);
+	-var d = date.getDate(dateString);
+	-var monthNames = [ "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" ];
+	-var m = monthNames[date.getMonth()];
+	-var y = date.getFullYear();
+	-return d+' '+m+' '+y;
+-} 
+html  
+	head
+		style
+			include style.css
+	body
+		h1= 'List of Games'
+		table
+			thead
+				td Date
+				td Domicile
+				td Match Nul
+				td Extérieur
+				td Résultat Final
+			each game in games
+				tr
+					td #{prettyDate(game.date)}
+					td #{game.home_team} (#{game.home_odd})
+					td (#{game.draw_odd})
+					td #{game.away_team} (#{game.away_odd})					
+					case game.final_result
+						when "H"
+							td #{game.home_team}
+						when "D"
+							td Match nul
+						when "A"
+							td #{game.away_team}
+
+

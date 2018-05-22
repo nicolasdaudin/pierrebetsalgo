@@ -1,0 +1,99 @@
+/* style.css */
+body { 
+	font-family : Helvetica,Arial,sans-serif 
+}
+table {
+	border: 1px solid;    
+}
+
+thead { 
+    background-color: #c5f7c7;
+    color: #707070 		    
+} 
+tfoot { 
+    font-size:1.2em;
+    background-color: #ffde84;
+    color: #707070 
+} 
+th, td { 
+    padding: 5px 15px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+    font-weight : normal ;
+    text-align:center;
+}
+table.small th, table.small td { 
+    font-size:0.8em;
+    padding: 0px;
+    border-bottom: 1px solid #ddd;
+    font-weight : normal ;
+    text-align:center;
+} 
+
+table.insidelogs th, table.insidelogs td { 
+    font-size:0.9em;
+    padding: 2px;
+    font-weight : normal ;
+    text-align:center;
+} 
+table.insidelogs {
+     padding-left: 30px;
+     border:0;
+}
+
+.visits { 
+	font-size:1.1em;
+	font-style:italic;
+	background-color: #f7e3ad;
+    color: #707070 
+} 
+.yesterday { 
+	color: red 
+} 
+.month { 
+	font-weight: bold 
+} 
+
+.log {
+    padding-left: 30px;
+}
+
+.pari_important {
+    background-color: #eec454;
+    font-weight: bold;   
+    padding-left:0px;
+}
+
+.pari_resultat {
+    background-color: #f7e3ad;
+    font-weight: bold
+}
+
+.retrait {
+    background-image : url('https://png.icons8.com/office/25/000000/left.png');
+    background-position: left center;
+    background-repeat: no-repeat;
+}
+
+table.insidelogs th.win, table.insidelogs thead td.win {
+    color:blue;
+    font-size:2em;
+}
+
+.depot {
+    background-image : url('https://png.icons8.com/office/25/000000/right.png');
+    background-position: left center;
+    background-repeat: no-repeat;
+   
+       
+}
+
+.bankroll {
+    background-image : url('https://png.icons8.com/color/25/000000/money-box.png');
+    background-position: left center;
+    background-repeat: no-repeat;
+    
+          
+}
+
+

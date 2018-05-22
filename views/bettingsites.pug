@@ -1,0 +1,48 @@
+
+html  
+	head
+		style
+			include style.css
+	body
+		h1= 'List of Betting Sites'
+		table(class='small')
+			thead
+				td Ordre Pierre
+				td Nom
+				td Type Bonus
+				td Limite Bonus
+				td % Bonus
+				td Cote min
+				td Nb de paris nécessaires
+				td Type Affiliation
+				td Montant Affiliation
+				td Commission dispo
+				
+			each site in sites
+				tr
+					td #{site.order_pierre}
+					td #{site.name}
+					case site.bonus_type
+						when "welcome"
+							td Bonus Bienvenue
+						when "free_win_or_lose"
+							td Gratuit (perdant ou gagnant)
+						when "refund"
+							td Remboursé
+						when "free_lose"
+							td Gratuit (si perdant)
+						default
+							td N/A
+					td #{site.bonus_limit} €
+					td #{site.bonus_percentage} % 
+					td #{site.bonus_min_odd}
+					td #{site.times}
+					td #{site.commission_type}
+					case site.commission_type
+						when "RS"
+							td #{site.commission_amount} %
+						when "CPA"
+							td #{site.commission_amount} €
+					td #{site.commission_availability}					
+
+

@@ -13,13 +13,15 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "async": "^2.3.0",
+    "async": "^2.6.0",
     "body-parser": "^1.14.1",
     "express": "^4.13.3",
+    "jade": "^1.11.0",
     "moment": "^2.18.1",
     "mongoose": "^4.9.7",
     "morgan": "^1.6.1",
-    "nodemon": "^1.11.0"
+    "nodemon": "^1.11.0",
+    "pug": "^2.0.3"
   },
   "devDependencies": {
     "eslint": "^4.11.0",

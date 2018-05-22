@@ -1,0 +1,92 @@
+-function prettyDate(dateString){
+	-var date = new Date(dateString);
+	-var d = date.getDate(dateString);
+	-var monthNames = [ "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" ];
+	-var m = monthNames[date.getMonth()];
+	-var y = date.getFullYear();
+	-return d+' '+m+' '+y;
+-} 
+html  
+	head
+		style
+			include style.css
+	body
+		h2(id='iter'+ nb) Iteration no #{nb} - Matchs
+		
+		table
+			thead
+				td Date
+				td Domicile
+				td Match Nul
+				td Extérieur
+				td Résultat Final
+			each game in games
+				tr
+					td #{prettyDate(game.date)}
+					td #{game.home_team} (#{game.home_odd})
+					td (#{game.draw_odd})
+					td #{game.away_team} (#{game.away_odd})					
+					case game.final_result
+						when "H"
+							td #{game.home_team}
+						when "D"
+							td Match nul
+						when "A"
+							td #{game.away_team}
+		h2 Iteration no #{nb} - Résultats finaux
+		.
+			Capital initial #{init_bankroll} € - Capital final #{final_bankroll} € 
+		br
+		span(style={color: 'red'}) Gains finaux : #{gains_finaux} (frais de #{frais} déduits)
+		br
+		.
+			Nb de paris joués : #{final_betNumber} paris
+		br
+		.
+			Temps passé sur cette simulation : #{elapsed} milliseconds
+		h2 Iteration no #{nb} - Détails
+		each log,position in logs		
+			
+			case log.type
+				when "pari_important"
+					h3(class=`log ${log.type}`) #{log.msg}
+				when "pari_tableau"
+					table(class='insidelogs')
+						thead
+							if log.gameLogObject[0]
+								td(class=`${log.gameLogObject[0].winclass}`) #{log.gameLogObject[0].who} à #{log.gameLogObject[0].odd}
+							if log.gameLogObject[1]
+								td #{log.gameLogObject[1].who} à #{log.gameLogObject[1].odd} 
+							if log.gameLogObject[2]
+								td #{log.gameLogObject[2].who} à #{log.gameLogObject[2].odd} 
+						tr
+							if log.gameLogObject[0]
+								td 
+									span #{log.gameLogObject[0].site}
+									br
+									span #{log.gameLogObject[0].bet} € (#{log.gameLogObject[0].using_bonus_solde_text})
+							if log.gameLogObject[1]
+								td 
+									span #{log.gameLogObject[1].site}
+									br
+									span #{log.gameLogObject[1].bet} € (#{log.gameLogObject[1].using_bonus_solde_text})
+							if log.gameLogObject[2]
+								td 
+									span #{log.gameLogObject[2].site}
+									br
+									span #{log.gameLogObject[2].bet} € (#{log.gameLogObject[2].using_bonus_solde_text})
+				default
+					span(class=`log ${log.type}`) #{log.msg}
+			br
+		br
+		br
+		a(href='#iter' + nb) Retourner en haut de cette itération
+		br
+		a(href='#begin') Retourner TOUT en haut de cette simulation
+		br
+		br
+
+		
+
+
+
