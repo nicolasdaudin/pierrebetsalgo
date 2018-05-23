@@ -104,7 +104,7 @@ app.get('/simulatemanymembers/:nb',function(req,res){
 			var max_gains_finaux = resultIter.reduce( (max,iter) => Math.max(max,iter.gains_finaux),0);
 			var total_gains_finaux = resultIter.reduce( (total,iter) => total + parseFloat(iter.gains_finaux),0);
 			var avg_gains_finaux = total_gains_finaux/resultIter.length;
-			var min_gains_finaux = resultIter.reduce( (min,iter) => Math.min(min,iter.gains_finaux),0);
+			var min_gains_finaux = resultIter.reduce( (min,iter) => Math.min(min,iter.gains_finaux),1000);
 
 			console.log('MAX GAINS FINAUX',max_gains_finaux);
 			console.log('TOTAL GAINS FINAUX',total_gains_finaux);
@@ -263,11 +263,11 @@ var simulateManyMembers = function(iterNb,callbackWhilstManyIterations){
 													if (siteNb > -1){
 
 														var site = notyetsites[siteNb];
-														var deposit = Math.min(bankroll,site.bonus_limit);
+														var deposit = Math.round(Math.min(bankroll,site.bonus_limit));
 														var newSolde = deposit + site.solde;										
 														bankroll = bankroll - deposit;
 														console.log('[Bet #%s] Site %s - Dépôt %s - Remaining Bankroll %s',betNumber,site.name,newSolde,bankroll);
-														logs.push({type:'depot',msg:`${site.name} - Dépôt ${deposit} - Remaining Bankroll ${bankroll}`});
+														logs.push({type:'depot',msg:`${site.name} - Dépôt ${deposit} - Remaining Bankroll ${bankroll.toFixed(2)}`});
 
 														OngoingSites.update({iterNb:iterNb,name:site.name},{deposit:deposit,solde:newSolde,site_status:'ongoing'},function(err,result){
 															//console.log('Updating site %s - err:%s - result %s',site.name,err,result);
@@ -288,13 +288,13 @@ var simulateManyMembers = function(iterNb,callbackWhilstManyIterations){
 										
 
 									});
-							/*	} else if (ongoingsites && ongoingsites.length === 1){
-									// un seul site, on est plus au début
-									// on ouvre un deuxième et un troisième site
-									// on prend le site suivant de la liste de pierre
+							
+								} else if ( ongoingsites.length === 2 ){
+									// Y a déjà deux sites mais si la bankroll est suffisamment grande pour commencer le site suivant, on le commence
+
+									// pour l'instant, on prend le premier site 'not yet' de la liste de Pierre
 									OngoingSites.find({iterNb:iterNb,site_status:'not yet'},{},{sort:{order_pierre:1},limit:1},function(err,notyetsites){
-										//console.log('Nb sites found',sites.length);
-										
+
 										if (!notyetsites || notyetsites.length === 0){
 											// no more 'not yet' sites either, it means we are done with all the sites
 											console.log('[Bet #%s] NO MORE SITES, WE STOP',betNumber);
@@ -303,29 +303,37 @@ var simulateManyMembers = function(iterNb,callbackWhilstManyIterations){
 											callbackDoWhilst();
 
 										} else {
-											console.log('[Bet #%s] ###### STARTING 1 NEW SITE',betNumber);
-											
-											// On assigne la partie de la bankroll nécessaire au bonus
-											// Et on dépose autant que le bonus_limit
-											var site = notyetsites[0];
-											var deposit = Math.min(bankroll,site.bonus_limit);
-											var newSolde = deposit + site.solde;										
-											bankroll = bankroll - deposit;
-											console.log('[Bet #%s] Site %s - New solde %s - Remaining Bankroll %s',betNumber,site.name,newSolde,bankroll);
-											logs.push({type:'depot',msg:`${site.name} - Dépôt ${deposit} - Remaining Bankroll ${bankroll}`});
 
-											OngoingSites.update({iterNb:iterNb,name:site.name},{deposit:deposit,solde:newSolde,site_status:'ongoing'},function(err,result){
-												//console.log('Updating site %s - err:%s - result %s',site.name,err,result);
-												console.log('callback decideSites');
+											// on regarde si le bonus du site choisi est inférieur à la bankroll
+											// si c'est le cas on peut démarrer le site
+											var site = notyetsites[0];											
+											if (site.bonus_limit > bankroll){												
+												console.log('[Bet #%s] ###### Déjà 2 sites. On ne commence pas de nouveau site, pas assez de bankroll (%s) pour le bonus du site suivant (%s,%s) dans la liste',betNumber,bankroll,site.name,site.bonus_limit);
+												logs.push({type:'site',msg:`Déjà 2 sites et pas assez de bankroll (${bankroll}) pour commencer le site suivant ${site.name} (bonus: ${site.bonus_limit})`});
 												callbackDecideSites();
-											});
+											} else {												
+												console.log('[Bet #%s] ###### Assez de bankroll pour commencer un nouveau site',betNumber);
+												
+												var deposit = Math.round(Math.min(bankroll,site.bonus_limit));
+												var newSolde = deposit + site.solde;										
+												bankroll = bankroll - deposit;
+												console.log('[Bet #%s] Site %s - Dépôt %s - Remaining Bankroll %s',betNumber,site.name,newSolde,bankroll);
+												logs.push({type:'depot',msg:`${site.name} - Dépôt ${deposit} - Remaining Bankroll ${bankroll.toFixed(2)}`});
+
+												OngoingSites.update({iterNb:iterNb,name:site.name},{deposit:deposit,solde:newSolde,site_status:'ongoing'},function(err,result){
+													//console.log('Updating site %s - err:%s - result %s',site.name,err,result);
+													console.log('[Bet #%s] callback decideSites pour site %s',betNumber,site.name);
+													callbackDecideSites();
+												});
+											}
+
 										}
 									});
-*/
+
 								} else {
 									// NOTHING TO DO
 									// ON PASSE A LA SUITE, ET ON PARIE
-									console.log('[Bet #%s] ###### déjà 2 sites, on ouvre rien de plus pour linstant',betNumber);
+									console.log('[Bet #%s] ###### déjà 3 sites, on ouvre rien de plus pour linstant',betNumber);
 									console.log('callback decideSites');
 									callbackDecideSites();
 
@@ -336,215 +344,42 @@ var simulateManyMembers = function(iterNb,callbackWhilstManyIterations){
 								// on recupere à nouveau les sites
 								OngoingSites.find({iterNb:iterNb,site_status:'ongoing'},function(err,sites){
 
-									// TODO
-									// deux sites, on peut donc utiliser ces deux sites pour parier
-									console.log("[Bet #%s] ###### CHOOSING BETS AND SITES",betNumber);
-									console.log("[Bet #%s] Among following nb of sites :",betNumber,sites.length)
+									console.log("[Bet #%s] ###### CHOOSING BETS AND SITES (among %s sites)",betNumber,sites.length);									
 									
-									var chosenSite;
-									var otherSite;
-									var chosenGameObj;
+									// ########################################################
+									// FIND BEST SITE WITH BONUS TYPE AND BEST GAME
+									// ########################################################
+									var result = findBestSiteWithBonusTypeAndBestGame(sites,games,betNumber);
+									var chosenSite = result.chosenSite;
 
-									var logBonusType = '';
+									var otherSites = result.otherSites;
+									var chosenGameObj = result.chosenGameObj;
+									var logBonusType = result.logBonusType;
 
-									var siteFreeWinOrLoseFound = findBestSiteWithBonusType(sites,'free_win_or_lose');
-									if (siteFreeWinOrLoseFound >= 0){
-										chosenSite = sites[siteFreeWinOrLoseFound];
-										otherSite = sites[siteFreeWinOrLoseFound === 0 ? 1 : 0];
-										console.log('[Bet #%s] free_win_or_lose - Pari sur les deux sites suivants : %s et %s',betNumber,chosenSite.name,otherSite.name);
-										logBonusType = `Pari ${betNumber} : On va parier sur ${chosenSite.name} (Pari gratuit si gagnant ou perdant) et ${otherSite.name} `;
-										
-										// quand c'est free_win_or_lose : on va gagner le bonus quoiqu'il arrive 
-										// DONC le mieux c'est d'avoir la cote la plus basse possible sur le site free_win_or_lose
-										// (pour pouvoir maximiser les autres cotes)
-										// et il faut qu'elle soit au-dessus de min_odd 
-										console.log('[Bet #%s] ###### CHOOSING GAME',betNumber);
-										// ######## DECIDER DU MATCH ##########
-										chosenGameObj = findBestGame(games,chosenSite.first_bet_min_odd,'win');
-										
-									} else {
-										var siteRefundFound = findBestSiteWithBonusType(sites,'refund');
-										if (siteRefundFound >= 0){
-											chosenSite = sites[siteRefundFound];
-											otherSite = sites[siteRefundFound === 0 ? 1 : 0];
-											console.log('[Bet #%s] refund - Pari sur les deux sites suivants : %s et %s',betNumber,chosenSite.name,otherSite.name);
-											logBonusType = `Pari ${betNumber} : On va parier sur ${chosenSite.name} (Pari remboursé) et ${otherSite.name} `;
-											
-											// quand c'est refund, 
-											// 		- si le bonus est en 'not yet', on préfère perdre le pari sur le site 'refund' et débloquer le bonus
-											//		- sinon, on préfère gagner le pari, donc cote plus proche de 2.
-											// 18 mai: cette règle est fausse: là entre Netbet et France Pari on choisit Netbet et comme c'est en 'not yet' au début
-											// on essaie de perdre sur Netbet. Alors qu'on veut évidemment gagner sur Netbet car on a choisi le site avec les plus grosses conditions
-											// Reellement il faudrait prendre le site avec les plus faibles conditions et essayer de perdre sur celui-ci, non?
-											// TODO : il faudra gérer le fait que à cause des bonus à valider sur l'autre site du pari, c'est peut-être nécessaire de voir
-											// la cote minimale pour ces validations...
-											// TODO 15 mai: peut-être venu le temps de faire un findBestGame(games,sites) qui prennent en compte les règles
-											// les bonus, ceci cela... voire même qui fasse le "findBestSiteWithBonusType" directement
+									
 
-											console.log('[Bet #%s] ###### CHOOSING GAME',betNumber);
-											// ######## DECIDER DU MATCH ##########
-											
-											if (chosenSite.bonus_status === 'not yet'){
-												chosenGameObj = findBestGame(games,3.5,'lose');
-											} else {
-												chosenGameObj = findBestGame(games,2,'win');
-											}
-										} else {
-											// no free_win_or_lose and no refund
-											var siteFreeLoseFound = findBestSiteWithBonusType(sites,'free_lose');
-											if (siteFreeLoseFound >= 0){
-												chosenSite = sites[siteFreeLoseFound];
-												otherSite = sites[siteFreeLoseFound === 0 ? 1 : 0];
-												console.log('[Bet #%s] free_lose - Pari sur les deux sites suivants : %s et %s',betNumber,chosenSite.name,otherSite.name);
-												logBonusType = `Pari ${betNumber} : On va parier sur ${chosenSite.name} (Pari gratuit si perdant) et ${otherSite.name} `;
-												
-												// quand c'est free_lose, on gagne le bonus que si on perd
-												// donc pour l'instant on essaie de prendre un pari avec une cote assez grosse
-												// TODO : il faudra gérer le fait que à cause des bonus à valider sur l'autre site du pari, c'est peut-être nécessaire de voir
-												// la cote minimale pour ces validations...
-												// TODO 15 mai: peut-être venu le temps de faire un findBestGame(games,sites) qui prennent en compte les règles
-												// les bonus, ceci cela... voire même qui fasse le "findBestSiteWithBonusType" directement
-												console.log('[Bet #%s] ###### CHOOSING GAME',betNumber);
-												// ######## DECIDER DU MATCH ##########
-												chosenGameObj = findBestGame(games,3.5,'lose');
-											} else {
-												// tous les autres cas donc on s'en fiche
-												chosenSite = sites[0];
-												otherSite = sites[1];
-												console.log('[Bet #%s] other cases - Pari sur les deux sites suivants : %s et %s',betNumber,chosenSite.name,otherSite.name);
-												logBonusType = `Pari ${betNumber} : On va parier sur ${chosenSite.name} (Ni pari gratuit ni pari remboursé) et ${otherSite.name} `;
-											
-												// for other cases we just decide a game with a odd close to 2, and 'win'
-												// TODO: should probably be improved
-												chosenGameObj = findBestGame(games,2,'win');
-
-											}
-										}
-									}
-
+									//console.log('chosenGameObj',chosenGameObj);
+									//console.log('otherSites',otherSites);
+									//console.log('chosenSite',chosenSite);
+									//console.log('otherSite',otherSite);
+									
 									var indexChosenGame = chosenGameObj.index;
-									var oddtypeChosenGame = chosenGameObj.odd_type;
+									var chosenOddType = chosenGameObj.odd_type;
 									var chosenGame = games[indexChosenGame];
-									
-
-
-									// Chosen bet for the 'first' site
-									if (chosenSite.solde > 0){
-										chosenSite.chosenBets = [{
-											odd : chosenGame[oddtypeChosenGame],
-											odd_type : oddtypeChosenGame,
-											sum : chosenSite.solde,
-											using_bonus_solde : false
-										}]
-										chosenSite.solde = 0;
-									} else {
-										// on utilise le solde du bonus
-										chosenSite.chosenBets = [{
-											odd : chosenGame[oddtypeChosenGame],
-											odd_type : oddtypeChosenGame,
-											sum : chosenSite.bonus_solde,
-											using_bonus_solde : true
-										}]
-										chosenSite.bonus_solde = 0;
-									}
-
-									console.log('[Bet #%s] %s : %s - %s',
-										betNumber,moment(chosenGame.date).format('DD MMM'),chosenGame.home_team,chosenGame.away_team);
-									logs.push({type:'pari_important',msg:`Pari ${betNumber} : Match du ${moment(chosenGame.date).format('DD MMM')} entre ${chosenGame.home_team} et ${chosenGame.away_team} `});
-									logs.push({type:'pari',msg:logBonusType});
-									// Chosen bet for the 'second' site
-									var otherSitesOddTypes = findOppositeOddTypes(oddtypeChosenGame);
-									var otherSiteSum = 0;
-									var otherSiteUsingBonusSolde = false;
-									if (otherSite.solde > 0){
-										otherSiteSum = otherSite.solde;
-										otherSite.solde = 0
-									} else {
-										// on utilise le bonus
-										otherSiteSum = otherSite.bonus_solde;
-										otherSite.bonus_solde = 0;
-										otherSiteUsingBonusSolde = true;
-									}
-									
-
-									if (otherSitesOddTypes.length > 1){
-										// oouble pari sur le second site, il faut donc splitter la somme en deux
-										otherSiteSum = otherSiteSum / 2;
-										// TODO: ça devrait être proportionnel
-										// si il reste deux résultats avec une cote c1 et c2, et que la somme totale est s, 
-										// alors s2 (mise sur le deuxème resultat) = (s*c1)/(c1+c2)
-									} 
-
-									otherSite.chosenBets = [];
-									otherSitesOddTypes.forEach(function (otherSiteOddType){
-										otherSite.chosenBets.push({
-											odd : chosenGame[otherSiteOddType],
-											odd_type : otherSiteOddType,
-											sum : otherSiteSum,
-											using_bonus_solde : otherSiteUsingBonusSolde
-										});
-									});
-
 									var gameLogObject = [];
-									gameLogObject[3] = false;
-
 									
-									var chosenBet = chosenSite.chosenBets[0];
-									console.log('[Bet #%s] Site %s - Pari sur %s - Cote %s - Somme %s (%s)',
-											betNumber,chosenSite.name,printOddTypes(chosenGame,chosenBet.odd_type),chosenBet.odd,chosenBet.sum,(chosenBet.using_bonus_solde === true)? 'Bonus':'Solde normal');
-									//logs.push({type:'pari',msg:`Pari ${betNumber} : Site ${chosenSite.name} - On va parier ${chosenBet.sum} € (${(chosenBet.using_bonus_solde === true)? 'Bonus':'Solde normal'}) sur ${printOddTypes(chosenGame,chosenBet.odd_type)} à une côte de ${chosenBet.odd}`});
-									var indexlog = 0;
-									if (chosenBet.odd_type === 'home_odd' || chosenBet.odd_type === 'home_draw_odd'){
-										indexlog = 0;
-									} else if (chosenBet.odd_type === 'draw_odd' || chosenBet.odd_type === 'away_draw_odd'){
-										indexlog = 1;
-									} else if (chosenBet.odd_type === 'away_odd' || chosenBet.odd_type === 'home_away_odd'){
-										indexlog = 2;
-									} 
-									if ((chosenBet.odd_type === 'home_draw_odd') || (chosenBet.odd_type === 'home_draw_odd') || (chosenBet.odd_type === 'home_draw_odd')){
-										gameLogObject[3] = true;
-									}
+									decideBets(chosenSite,otherSites,chosenGame,chosenOddType,logs,
+										logBonusType, gameLogObject,betNumber)
 
-									gameLogObject[indexlog] = {
-										site : chosenSite.name, 
-										odd:chosenBet.odd, 
-										who:printOddTypes(chosenGame,chosenBet.odd_type), 
-										bet:chosenBet.sum,
-										using_bonus_solde_text : ((chosenBet.using_bonus_solde === true)? 'Bonus':'Solde normal'),
-										winclass:''
-									};
-
-									otherSite.chosenBets.forEach(function (chosenBet){
-										console.log('[Bet #%s] Site %s - Pari sur %s - Cote %s - Somme %s (%s)',
-											betNumber,otherSite.name,printOddTypes(chosenGame,chosenBet.odd_type),chosenBet.odd,chosenBet.sum,(chosenBet.using_bonus_solde === true)? 'Bonus':'Solde normal');
-										//logs.push({type:'pari',msg:`Pari ${betNumber} : Site ${otherSite.name} - On va parier ${chosenBet.sum} € (${(chosenBet.using_bonus_solde === true)? 'Bonus':'Solde normal'}) sur ${printOddTypes(chosenGame,chosenBet.odd_type)} à une côte de ${chosenBet.odd}`});
-										var indexlog = 0;
-										if (chosenBet.odd_type === 'home_odd' || chosenBet.odd_type === 'home_draw_odd'){
-											indexlog = 0;
-										} else if (chosenBet.odd_type === 'draw_odd' || chosenBet.odd_type === 'away_draw_odd'){
-											indexlog = 1;
-										} else if (chosenBet.odd_type === 'away_odd' || chosenBet.odd_type === 'home_away_odd'){
-											indexlog = 2;
-										} 
-										if ((chosenBet.odd_type === 'home_draw_odd') || (chosenBet.odd_type === 'home_draw_odd') || (chosenBet.odd_type === 'home_draw_odd')){
-											gameLogObject[3] = true;
-										}
-
-										gameLogObject[indexlog] = {
-											site : otherSite.name, 
-											odd:chosenBet.odd, 
-											who:printOddTypes(chosenGame,chosenBet.odd_type), 
-											bet:chosenBet.sum,
-											using_bonus_solde_text : ((chosenBet.using_bonus_solde === true)? 'Bonus':'Solde normal'),
-											winclass:''
-										};
+									var allSites = [];
+									allSites.push(chosenSite);
+									otherSites.forEach(function(otherSite){
+										allSites.push(otherSite);
 									});
 									
-
-
 									// updating the sites in DB
 									async.each(
-										[chosenSite,otherSite],
+										allSites,
 										function updateSite(site,callback){
 											OngoingSites.update({iterNb:iterNb,name:site.name},
 												{
@@ -559,7 +394,7 @@ var simulateManyMembers = function(iterNb,callbackWhilstManyIterations){
 										},
 										function (err){
 											console.log('callback decideBets');
-											callbackDecideBets(null,gameLogObject,chosenGame,chosenSite,otherSite);
+											callbackDecideBets(null,gameLogObject,chosenGame,allSites);
 										}
 									);
 										
@@ -569,156 +404,19 @@ var simulateManyMembers = function(iterNb,callbackWhilstManyIterations){
 								
 							}, 
 
-							function resultGame(gameLogObject,chosenGame,chosenSite,otherSite,callbackResultGame){
-								console.log("###### RESULT OF GAME");
+							function resultGame(gameLogObject,chosenGame,allSites,callbackResultGame){
 
+								bankroll = computeResultGame(chosenGames,chosenGame,allSites,bankroll,betNumber,logs,gameLogObject);
 								
-
-								var final_result = decideRandomFinalResult(chosenGame);
-								var winningOdds = findWinningOdds(final_result);
-								chosenGame.final_result = final_result; //overwriting for display purpose
-								chosenGames.push(chosenGame);
-
-
-								var indexlog = 0;
-								if (gameLogObject[3]){
-									// pari double chance
-									if (winningOdds.includes('home_draw_odd') && gameLogObject[0]){
-										indexlog = 0;									
-									} else if (winningOdds.includes('away_draw_odd') && gameLogObject[1]){
-										indexlog = 1;
-									} else if (winningOdds.includes('home_away_odd') && gameLogObject[2]){
-										indexlog = 2;
-									}
-								} else {
-									// pari normal
-								
-									if (winningOdds.includes('home_odd') && gameLogObject[0]){
-										indexlog = 0;									
-									} else if (winningOdds.includes('draw_odd') && gameLogObject[1]){
-										indexlog = 1;
-									} else if (winningOdds.includes('away_odd') && gameLogObject[2]){
-										indexlog = 2;
-									}
-								}
-								console.log('winningOdds',winningOdds);
-								console.log('indexlog',indexlog);
-								console.log('gameLogObject',gameLogObject);
-								gameLogObject[indexlog].winclass = 'win';
-								logs.push({type:'pari_tableau',gameLogObject:gameLogObject});
-								
-								console.log("[Bet #%s] Résultat: %s - Mises victorieuses : %s",
-									betNumber,printFinalResult(chosenGame,final_result),printOddTypes(chosenGame,winningOdds));
-								logs.push({type:'pari_resultat',msg:`Pari ${betNumber} : Résultat: ${printFinalResult(chosenGame,final_result)}`});
-
-								[chosenSite,otherSite].forEach(function (site){
-									site.chosenBets.forEach(function (chosenBet){
-										
-										if (winningOdds.includes(chosenBet.odd_type)){
-											// pari gagnant
-											site.solde = site.solde + chosenBet.odd * chosenBet.sum;
-
-											// si c'est un site avec 'free_win_or_lose', et que le bonus n'était pas encore en usage (premier pari)
-											// on met à jour le bonus à valider (bonus_remaining) avec le minimum entre le bonus_limt et la somme misée,
-											// multiplié par le nombre de fois où faut le parier
-											// on met à jour le solde du bonus (bonus_solde) avec le minimum entre le bonus_limt et la somme misée, 
-											if (site.bonus_status === 'not yet' && site.bonus_type === 'free_win_or_lose'){
-												site.bonus_remaining = Math.min(site.bonus_limit,chosenBet.sum) * site.times;
-												site.bonus_solde = Math.min(site.bonus_limit,chosenBet.sum);
-												site.bonus_status = 'ongoing';
-											}
-
-											// si c'est un site avec 'refund', 'free_lose', 'none' et que le bonus n'était pas encore en usage (premier pari)
-											// on met à jour le bonus à 'done' car on ne pourra pas l'utiliser 
-											if (site.bonus_status === 'not yet' && 
-												( site.bonus_type === 'refund' || site.bonus_type === 'free_lose' || site.bonus_type === 'none')){												
-												site.bonus_status = 'done';
-											}
-
-											// PLus maintenant: (si c'est un site avec 'refund' )
-											// et que le bonus était en usage
-											// on met à jour le bonus_remaining avec la différence entre l'ancien bonus_remaining et ce qui a été misé
-											if (site.bonus_status === 'ongoing'){
-												site.bonus_remaining = Math.max(site.bonus_remaining - chosenBet.sum,0);
-												//site.bonus_solde = site.bonus_solde - chosenBet.sum;
-											}
-
-											console.log("[Bet #%s] Pari gagnant sur",betNumber,site.name);
-											logs.push({type:'pari',msg:`Pari ${betNumber} : ${site.name} (Pari Gagnant) - Solde : ${site.solde} - Solde Bonus : ${site.bonus_solde} - Bonus restant à valider : ${site.bonus_remaining}`});
-
-
-										} else {
-											// pari perdant
-
-											// si le bonus du site est pas encore utilisé, on peut l'activer.																			
-											if (site.bonus_status === 'not yet'){
-												if (site.bonus_type === 'free_win_or_lose' || site.bonus_type === 'refund' || site.bonus_type === 'free_lose'){
-													// on initialise les bonus
-													site.bonus_remaining = Math.min(site.bonus_limit,chosenBet.sum) * site.times;
-													site.bonus_solde = Math.min(site.bonus_limit,chosenBet.sum);
-													site.bonus_status = 'ongoing';
-												} 
-
-											// si le bonus du site est ongoing
-											} else if (site.bonus_status === 'ongoing'){
-												if (site.bonus_type === 'free_win_or_lose' || site.bonus_type === 'refund' || site.bonus_type === 'free_lose'){
-													// on met à jour les bonus (le solde et le restant à valider)
-													site.bonus_remaining = Math.max(site.bonus_remaining - chosenBet.sum,0);
-													//site.bonus_solde = site.bonus_solde - chosenBet.sum;
-												}
-
-											}
-
-											logs.push({type:'pari',msg:`Pari ${betNumber} : ${site.name} (Pari Perdant) - Solde : ${site.solde} - Solde Bonus : ${site.bonus_solde} - Bonus restant à valider : ${site.bonus_remaining}`});
-										}
-									});
-
-									if (site.bonus_status === 'ongoing' && site.solde === 0 && site.bonus_solde === 0){
-										// plus d'argent sur le site, ni en solde ni en bonus, on abandonne et on ferme le site
-										site.site_status = 'done';
-										console.log("Site %s - Plus d'argent. On passe au site suivant.",site.name);
-										logs.push({type:'retrait',msg:`${site.name} - Plus d'argent à parier. On passe au site suivant`});
-									}
-									
-
-									if ( (site.bonus_status === 'ongoing' && site.bonus_remaining === 0)
-										|| (site.bonus_status === 'done')) {
-										// le bonus a été terminé, on peut fermer ce site et remettre l'argent dans la bankroll
-										var withdrawal = site.solde + site.bonus_solde;
-										bankroll += withdrawal;
-										site.withdrawal += withdrawal;
-										site.site_status = 'done';
-										site.solde = 0;
-										site.bonus_solde = 0;
-										site.bonus_status = 'done';
-
-										console.log("Site %s - Retrait de %s et on passe au site suivant.",site.name,withdrawal);
-										logs.push({type:'retrait',msg:`${site.name} - Retrait ${withdrawal} - Bonus validé, on ferme le site, on passe au site suivant`});
-									} 
-
-
-									console.log("[Bet #%s] %s",betNumber,printSiteStatus(site));
-
-
-
-								});
-								
-								console.log("[Bet #%s] Après le pari, la bankroll est de %s",betNumber,bankroll);
-								logs.push({type:'bankroll',msg:`Pari ${betNumber} : La bankroll est maintenant de ${bankroll}`});
-
-
-								// TODO lunes 14 mai : rajouter les updates en BBDD
-								// puis voir ce qu'il se passe ensuite pour la création du 3ème site	
-
 								async.each(
-									[chosenSite,otherSite],
+									allSites,
 									function updateSite(site,callback){
 										OngoingSites.update({iterNb:iterNb,name:site.name},
 											{
 												solde:site.solde,
 												bonus_remaining:site.bonus_remaining,
 												bonus_status:site.bonus_status,
-												withdrawal:site.withdrawal,
+												withdraw:site.withdraw,
 												site_status:site.site_status,
 												bonus_solde:site.bonus_solde},
 											function(err,result){
@@ -803,6 +501,173 @@ var simulateManyMembers = function(iterNb,callbackWhilstManyIterations){
 
 }
 
+var computeResultGame = function(chosenGames,chosenGame,allSites,bankroll,betNumber,logs,gameLogObject){
+	console.log("###### RESULT OF GAME");
+
+	var final_result = decideRandomFinalResult(chosenGame);
+	var winningOdds = findWinningOdds(final_result);
+	chosenGame.final_result = final_result; //overwriting for display purpose
+	chosenGames.push(chosenGame);
+
+	// LOGGING 
+	var indexlog = 0;
+	if (gameLogObject[3]){
+		// pari double chance
+		if (winningOdds.includes('home_draw_odd') && gameLogObject[0]){
+			indexlog = 0;									
+		} else if (winningOdds.includes('away_draw_odd') && gameLogObject[1]){
+			indexlog = 1;
+		} else if (winningOdds.includes('home_away_odd') && gameLogObject[2]){
+			indexlog = 2;
+		}
+	} else {
+		// pari normal
+	
+		if (winningOdds.includes('home_odd') && gameLogObject[0]){
+			indexlog = 0;									
+		} else if (winningOdds.includes('draw_odd') && gameLogObject[1]){
+			indexlog = 1;
+		} else if (winningOdds.includes('away_odd') && gameLogObject[2]){
+			indexlog = 2;
+		}
+	}
+	console.log('winningOdds',winningOdds);
+	console.log('indexlog',indexlog);
+	console.log('gameLogObject',gameLogObject);
+	gameLogObject[indexlog].winclass = 'win';
+	logs.push({type:'pari_tableau',gameLogObject:gameLogObject});
+
+	
+	console.log("[Bet #%s] Résultat: %s - Mises victorieuses : %s",
+		betNumber,printFinalResult(chosenGame,final_result),printOddTypes(chosenGame,winningOdds));
+	logs.push({type:'pari_resultat',msg:`Pari ${betNumber} : Résultat: ${printFinalResult(chosenGame,final_result)}`});
+	// END LOGGING
+
+	allSites.forEach(function (site){
+		site.chosenBets.forEach(function (chosenBet){
+			
+			if (winningOdds.includes(chosenBet.odd_type)){
+				// pari gagnant
+				// TODO: dans le cas d'un pari gratuit, il faut changer ça
+				site.solde = site.solde + chosenBet.odd * chosenBet.sum;
+
+				
+				if (site.bonus_status === 'not yet' && site.bonus_type === 'free_win_or_lose'){
+					// si c'est un site avec 'free_win_or_lose', et que le bonus n'était pas encore en usage (premier pari)
+					// on met à jour le bonus à valider (bonus_remaining) avec le minimum entre le bonus_limt et la somme misée,
+					// multiplié par le nombre de fois où faut le parier
+					// on met à jour le solde du bonus (bonus_solde) avec le minimum entre le bonus_limt et la somme misée, 
+
+					site.bonus_remaining = Math.min(site.bonus_limit,chosenBet.sum) * site.times;
+					site.bonus_solde = Math.min(site.bonus_limit,chosenBet.sum);
+					site.bonus_status = 'ongoing';
+				} else if (site.bonus_status === 'not yet' && 
+					( site.bonus_type === 'refund' || site.bonus_type === 'free_lose' || site.bonus_type === 'none')){	
+					// si c'est un site avec 'refund', 'free_lose', 'none' et que le bonus n'était pas encore en usage (premier pari)
+					// on met à jour le bonus à 'done' car on ne pourra pas l'utiliser 
+																
+					site.bonus_status = 'done';
+				} else if (site.bonus_status === 'ongoing'){
+					// Si le bonus était en usage, 
+					// on met à jour le bonus_remaining avec la différence entre l'ancien bonus_remaining et ce qui a été misé
+					
+					site.bonus_remaining = Math.max(site.bonus_remaining - chosenBet.sum,0);					
+				}
+				
+
+				console.log("[Bet #%s] Pari gagnant sur",betNumber,site.name);
+				logs.push({type:'pari',msg:`Pari ${betNumber} : ${site.name} (Pari Gagnant) - Solde : ${site.solde.toFixed(2)} - Solde Bonus : ${site.bonus_solde.toFixed(2)} - Bonus restant à valider : ${site.bonus_remaining.toFixed(2)}`});
+
+
+			} else {
+				// pari perdant
+
+				// si le bonus du site n'est pas encore "utilisé" et qu'il n'y a pas de bonus sur le site (PMU)
+				if (site.bonus_status === 'not yet' && site.bonus_type === 'none') {
+					site.bonus_status = 'done';
+				}
+
+				// si le bonus du site est pas encore utilisé, on peut l'activer.																			
+				if (site.bonus_status === 'not yet'){
+					if (site.bonus_type === 'free_win_or_lose' || site.bonus_type === 'refund' || site.bonus_type === 'free_lose'){
+						// on initialise les bonus
+						site.bonus_remaining = Math.min(site.bonus_limit,chosenBet.sum) * site.times;
+						site.bonus_solde = Math.min(site.bonus_limit,chosenBet.sum);
+						site.bonus_status = 'ongoing';
+					} 
+
+				// si le bonus du site est ongoing
+				} else if (site.bonus_status === 'ongoing'){
+					if (site.bonus_type === 'free_win_or_lose' || site.bonus_type === 'refund' || site.bonus_type === 'free_lose'){
+						// on met à jour les bonus (le solde et le restant à valider)
+						site.bonus_remaining = Math.max(site.bonus_remaining - chosenBet.sum,0);
+						//site.bonus_solde = site.bonus_solde - chosenBet.sum;
+					}
+
+				}
+
+				logs.push({type:'pari',msg:`Pari ${betNumber} : ${site.name} (Pari Perdant) - Solde : ${site.solde.toFixed(2)} - Solde Bonus : ${site.bonus_solde.toFixed(2)} - Bonus restant à valider : ${site.bonus_remaining.toFixed(2)}`});
+			}
+		});
+
+		if (site.bonus_status === 'ongoing' && site.solde === 0 && site.bonus_solde === 0){
+			// plus d'argent sur le site, ni en solde ni en bonus, on abandonne et on ferme le site
+			site.site_status = 'done';
+			console.log("Site %s - Plus d'argent. On passe au site suivant.",site.name);
+			logs.push({type:'retrait',msg:`${site.name} - Plus d'argent à parier. On passe au site suivant`});
+		}
+
+		if (site.bonus_status === 'done' && site.solde === 0 && site.bonus_solde === 0){
+			// plus d'argent sur le site, ni en solde ni en bonus, on abandonne et on ferme le site
+			site.site_status = 'done';
+			console.log("Site %s - Plus d'argent. On passe au site suivant.",site.name);
+			logs.push({type:'retrait',msg:`${site.name} - Plus d'argent à parier. On passe au site suivant`});
+		}
+
+
+		if ( (site.bonus_status === 'ongoing' && site.bonus_remaining === 0 && (site.solde > 0 || site.bonus_solde > 0))
+			|| (site.bonus_status === 'done' && (site.solde > 0 || site.bonus_solde > 0))) {
+			// le bonus a été terminé, on peut fermer ce site et remettre l'argent dans la bankroll
+			var withdraw = site.solde + site.bonus_solde;
+			bankroll += withdraw;
+			site.withdraw += withdraw;
+			site.site_status = 'done';
+			site.solde = 0;
+			site.bonus_solde = 0;
+			site.bonus_status = 'done';
+
+			console.log("Site %s - Retrait de %s et on passe au site suivant.",site.name,withdraw);
+			logs.push({type:'retrait',msg:`${site.name} - Retrait ${withdraw.toFixed(2)} - Bonus validé, on ferme le site, on passe au site suivant`});
+		} 
+
+		if ( site.bonus_type === 'free_win_or_lose' && site.bonus_status === 'ongoing' && site.solde > 0) {
+			// site de type 'free_win_or_lose' (ex Unibet), en cas de victoire on peut retirer le solde restant
+			// et ne garder que le bonus
+
+			var withdraw = site.solde ;
+			bankroll += withdraw;
+			site.withdraw += withdraw;
+			//site.site_status = 'done';
+			site.solde = 0;
+			//site.bonus_solde = 0;
+			//site.bonus_status = 'done';
+
+			console.log("Site %s - Retrait de %s du solde principal, il ne reste plus que le bonus.",site.name,withdraw);
+			logs.push({type:'retrait',msg:`${site.name} - Retrait ${withdraw.toFixed(2)} - On retire le solde principal, on conserve le bonus`});
+		} 
+
+
+		console.log("[Bet #%s] %s",betNumber,printSiteStatus(site));
+
+
+
+	});
+	
+	console.log("[Bet #%s] Après le pari, la bankroll est de %s",betNumber,bankroll.toFixed(2));
+	logs.push({type:'bankroll',msg:`Pari ${betNumber} : La bankroll est maintenant de ${bankroll.toFixed(2)}`});
+
+	return bankroll;
+}
 
 
 
@@ -921,12 +786,12 @@ var findRandomBestGame = function(games){
 	return games[chosen];
 };
 
+
 // this function returns the best game from a list of games
 // if mode is 'win' we want an easy game to win so we look for a game which odds is the smallest, but bigger than min_odd
 // if mode is 'lose' we want a game to lose so we look for a game which odds is the closest to min_odd
-// TODO: we consider all possible odds, INCLUDED double chance.
 
-var findBestGame = function(games, min_odd, mode){
+var findBestGame = function(games, min_odd, mode,doubleChanceAllowed){
 	//var nb = games.length;
 	//var chosen = Math.floor(Math.random() * nb);
 
@@ -934,6 +799,8 @@ var findBestGame = function(games, min_odd, mode){
 	var indexSmallestOdd = -1;
 	var typeSmallestOdd = '';
 	var safeMinOdd = min_odd*1.07;
+
+	var doubleChanceOdds = ['home_draw_odd','home_away_odd','away_draw_odd'];
 
 	for (var i = 0; i < games.length ; i++){
 		var game = games[i];
@@ -955,9 +822,11 @@ var findBestGame = function(games, min_odd, mode){
 		for (var oddprop in game._doc){
 			if (!game.hasOwnProperty(oddprop)){
 				if (game[oddprop] < smallestOdd && game[oddprop] > safeMinOdd){
-					smallestOdd = game[oddprop];
-					indexSmallestOdd = i;
-					typeSmallestOdd = oddprop;
+					if (doubleChanceAllowed || !doubleChanceOdds.includes(oddprop)){
+						smallestOdd = game[oddprop];
+						indexSmallestOdd = i;
+						typeSmallestOdd = oddprop;					
+					}					
 				}
 			}
 		}
@@ -965,6 +834,504 @@ var findBestGame = function(games, min_odd, mode){
 
 
 	return {index:indexSmallestOdd,odd_type:typeSmallestOdd};
+}
+
+/* 	return the index in the list of sites
+   	of the best site for a given bonus_type
+	the best site fills the following conditions :
+	- if only one found, it is that best site
+	- if more than one, we look for the one with the highest 'times' and if more than one, the highest bonus_min_odd
+
+	TODO : the best site should be the one with the validation conditions closed to be done
+	la méthode ne devrait pas faire selon le 'bonus_type' mais juste renvoyer le meilleur site tout bonus confondu
+	après c'est tout l'intêrét de l'algorithme, comment évaluer cela....
+
+*/
+var findBestSiteWithBonusType = function (sites,bonus_type){
+	var bestSitesNb = [];
+
+	for (var i = 0; i < sites.length; i++){
+		if (sites[i].bonus_type === bonus_type){
+			bestSitesNb.push(i);
+		}
+	}
+
+	if (bestSitesNb.length === 0){
+		// not found
+		return -1;
+	} else if (bestSitesNb.length === 1){
+		// we rturn that site number
+		return bestSitesNb[0];
+
+	} else {
+		// we look for the sites with the highest 'times'
+		var highestTimes = -1 ;
+		var highestTimesSitesNb = [];
+
+		for (var i = 0; i < bestSitesNb.length; i++){
+			var site = sites[bestSitesNb[i]];
+
+			if (site.times > highestTimes){
+				highestTimes = site.times;
+				highestTimesSitesNb = [i];
+			} else if (site.times === highestTimes){
+				highestTimesSitesNb.push(i);
+			}
+		}
+
+		if (highestTimesSitesNb.length === 1){
+			return highestTimesSitesNb[0];
+		} else {
+			// more than 1, we take the one with the highest odd
+			var highestOdd = -1;
+			var highestOddSitesNb = [];
+
+			for (var i = 0; i < highestTimesSitesNb.length; i++){
+				var site = sites[highestTimesSitesNb[i]];
+
+				if (site.bonus_min_odd > highestOdd){
+					highestOdd = site.times;
+					highestOddSitesNb = [i];
+				} else if (site.bonus_min_odd === highestOdd){
+					highestOddSitesNb.push(i);
+				}
+			}
+
+			// we return the first one in the list, whatever
+			return highestOddSitesNb[0];
+		}
+	}
+	
+}
+
+/* 	return the index in the list of sites
+   	of the best site according to the conditions
+   	if several sites, we take the one with highest bonus conditions
+
+*/
+var findSitesWithConditions = function (sites,bonus_type,bonus_status,min_bonus_min_odd,min_times){
+	var bestSitesNb = [];
+	//console.log('findSitesWithConditions - looking between sites',sites);
+	for (var i = 0; i < sites.length; i++){
+		var site = sites[i];
+		if ( (!bonus_type || site.bonus_type === bonus_type)
+			&& (!bonus_status || site.bonus_status === bonus_status) 
+				&& site.bonus_min_odd >= min_bonus_min_odd
+				&& site.times >= min_times){
+			bestSitesNb.push(i);
+		}
+	}
+
+	//console.log('findSitesWithConditions - site indices respecting the conditions',bestSitesNb);
+
+	if (bestSitesNb.length === 0){
+		// not found
+		return -1;
+	} else if (bestSitesNb.length === 1){
+		// we rturn that site number
+		return bestSitesNb[0];
+
+	} else {
+		// we look for the most complicated bonus 
+		var highestTimes = -1 ;
+		var highestTimesSitesNb = [];
+
+		for (var i = 0; i < bestSitesNb.length; i++){
+			var site = sites[bestSitesNb[i]];
+
+			if (site.times > highestTimes){
+				highestTimes = site.times;
+				highestTimesSitesNb = [i];
+			} else if (site.times === highestTimes){
+				highestTimesSitesNb.push(i);
+			}
+		}
+
+		if (highestTimesSitesNb.length === 1){
+			return highestTimesSitesNb[0];
+		} else {
+			// more than 1, we take the one with the highest odd
+			var highestOdd = -1;
+			var highestOddSitesNb = [];
+
+			for (var i = 0; i < highestTimesSitesNb.length; i++){
+				var site = sites[highestTimesSitesNb[i]];
+
+				if (site.bonus_min_odd > highestOdd){
+					highestOdd = site.times;
+					highestOddSitesNb = [i];
+				} else if (site.bonus_min_odd === highestOdd){
+					highestOddSitesNb.push(i);
+				}
+			}
+
+			// we return the first one in the list, whatever
+			return highestOddSitesNb[0];
+		}
+	}
+	
+}
+
+var getOtherSites = function(sites,foundIndex){
+	var otherSites = [];
+	var otherSiteNames = [];
+	for (var i = 0; i < sites.length;i++){
+		if (i != foundIndex){
+			otherSites.push(sites[i]);
+			otherSiteNames.push(sites[i].name);
+		}
+	}
+	return {
+		sites: otherSites,
+		names: otherSiteNames
+	}
+}
+
+var findBestSiteWithBonusTypeAndBestGame = function(sites,games,betNumber){
+	var chosenSite;
+	var otherSites;
+	var logBonusType = '';
+	var chosenGameObj;
+
+	var bestSiteConditionsInOrder = [
+		{desc:'Bonus pas encore commencé et beaucoup de conditions',goal:'win',game_odd:2,
+			bonus_type:null,bonus_status:'not yet',min_bonus_min_odd:1,min_times:3},
+		{desc:'Pari Gratuit si perdant ou gagnant',goal:'win',game_odd:1.5,
+			bonus_type:'free_win_or_lose',bonus_status:'not yet',min_bonus_min_odd:0,min_times:0},
+		{desc:'Pari Gratuit si perdant',goal:'win',game_odd:2,
+			bonus_type:'free_lose',bonus_status:'not yet',min_bonus_min_odd:0,min_times:0},
+		{desc:'Pari Remboursé en cours avec conditions',goal:'lose',game_odd:4,
+			bonus_type:'refund',bonus_status:'not yet',min_bonus_min_odd:1,min_times:1}
+	]
+
+	// le pari double chance est autorise uniquement si c'est le premier pari
+	// et si y a que deux sites
+	// sinon, non (car c'est pas rentable réellement)
+	var doubleChanceAllowed = (betNumber === 1 && sites.length <= 2);
+
+	for (let condition of bestSiteConditionsInOrder){
+		//console.log('Condition',condition);
+		var foundIndex = findSitesWithConditions(sites,condition.bonus_type,condition.bonus_status,condition.min_bonus_min_odd,condition.min_times);
+		if (foundIndex > -1){
+			// on va essayer de gagner sur ce site
+			chosenSite = sites[foundIndex];
+			var otherSitesObj = getOtherSites(sites,foundIndex);
+			otherSites = otherSitesObj.sites;
+			var otherSiteNames = otherSitesObj.names;
+
+			var firstText = 'gagner';
+			var secondText = 'perdre';
+			if (condition.goal === 'lose'){
+				firstText = 'perdre';
+				secondText = 'gagner'
+			}
+
+			console.log('[Bet #%s] %s - Pari sur les sites suivants : %s et %s',betNumber,condition.desc,chosenSite.name,otherSiteNames);
+			logBonusType = `Pari ${betNumber} : On va tenter de ${firstText} le pari sur ${chosenSite.name} (${condition.desc}) et le ${secondText} sur ${otherSiteNames}`;
+			
+			// FIND GAME
+		
+			chosenGameObj = findBestGame(games,condition.game_odd,condition.goal,doubleChanceAllowed);
+
+			break;
+		}
+	}
+
+	if (!chosenGameObj){
+		// aucune préférence
+		chosenSite = sites[0];
+		var otherSitesObj = getOtherSites(sites,0);
+		otherSites = otherSitesObj.sites;
+		var otherSiteNames = otherSitesObj.names;
+
+		console.log('[Bet #%s] Autre - Pari sur les sites suivants : %s et %s',betNumber,chosenSite.name,otherSiteNames);
+		logBonusType = `Pari ${betNumber} : Aucune stratégie, on s'en fiche. On va parier sur ${chosenSite.name} et sur ${otherSiteNames}`;
+			
+		// for other cases we just decide a game with a odd close to 2, and 'win'
+		// TODO: should probably be improved
+		// FIND GAME
+		
+		chosenGameObj = findBestGame(games,2.5,'win',doubleChanceAllowed);
+	}
+
+
+	return {
+		chosenSite : chosenSite,
+		otherSites : otherSites,
+		logBonusType : logBonusType,
+		chosenGameObj : chosenGameObj
+	};
+
+
+}
+
+var decideBets = function(chosenSite,otherSites,chosenGame,
+	chosenOddType,logs,logBonusType,gameLogObject,betNumber){
+	
+	
+	console.log('[Bet #%s] %s : %s - %s',
+		betNumber,moment(chosenGame.date).format('DD MMM'),chosenGame.home_team,chosenGame.away_team);
+	logs.push({type:'pari_important',msg:`Pari ${betNumber} : Match du ${moment(chosenGame.date).format('DD MMM')} entre ${chosenGame.home_team} et ${chosenGame.away_team} `});
+	logs.push({type:'pari',msg:logBonusType});
+
+	
+	// ######################
+	// CHOOSE BETS SUMS
+	// ######################
+
+
+	// ################################
+	// Chosen bet for the 'chosen' site
+	// ################################
+	if (chosenSite.solde > 0){
+		chosenSite.chosenBets = [{
+			odd : chosenGame[chosenOddType],
+			odd_type : chosenOddType,
+			sum : chosenSite.solde,
+			using_bonus_solde : false
+		}]
+		chosenSite.solde = 0;
+	} else {
+		// on utilise le solde du bonus
+		chosenSite.chosenBets = [{
+			odd : chosenGame[chosenOddType],
+			odd_type : chosenOddType,
+			sum : chosenSite.bonus_solde,
+			using_bonus_solde : true
+		}]
+		chosenSite.bonus_solde = 0;
+	}
+
+	
+	// ################################
+	// Chosen bet for the other site(s)
+	// ################################
+
+	var otherSitesOddTypes = findOppositeOddTypes(chosenOddType);
+
+	if (otherSites.length === 1){
+		// un seul autre site, c'est donc un DOUBLE PARI sur un site et deux résultats
+		// sauf si c'est un pari double chance
+		var otherSite = otherSites[0];
+		var otherSiteSum = 0;
+		var otherSiteUsingBonusSolde = false;
+		if (otherSite.solde > 0){
+			otherSiteSum = otherSite.solde;
+			otherSite.solde = 0
+		} else {
+			// on utilise le bonus
+			otherSiteSum = otherSite.bonus_solde;
+			otherSite.bonus_solde = 0;
+			otherSiteUsingBonusSolde = true;
+		}
+
+		otherSite.chosenBets = [];
+
+		if (otherSitesOddTypes.length === 1){
+			// pour l'autre site c'est un pari double chance
+			// donc ici il n'y a qu'un seul pari
+			otherSite.chosenBets.push({
+				odd : chosenGame[otherSitesOddTypes[0]],
+				odd_type : otherSitesOddTypes[0],
+				sum : otherSiteSum,
+				using_bonus_solde : otherSiteUsingBonusSolde
+			});
+		}
+
+		if (otherSitesOddTypes.length > 1){
+			// pari "normal" sur le premier site
+			// donc double pari sur l'autre site
+			var firstResultOdd = chosenGame[otherSitesOddTypes[0]];
+			var secondResultOdd = chosenGame[otherSitesOddTypes[1]];
+
+			var firstSiteSum = (otherSiteSum*secondResultOdd)/(firstResultOdd+secondResultOdd);
+			var secondSiteSum = (otherSiteSum*firstResultOdd)/(firstResultOdd+secondResultOdd);
+
+			otherSite.chosenBets.push({
+				odd : firstResultOdd,
+				odd_type : otherSitesOddTypes[0],
+				sum : firstSiteSum,
+				using_bonus_solde : otherSiteUsingBonusSolde
+			});
+			otherSite.chosenBets.push({
+				odd : secondResultOdd,
+				odd_type : otherSitesOddTypes[1],
+				sum : secondSiteSum,
+				using_bonus_solde : otherSiteUsingBonusSolde
+			});
+
+			// si il reste deux résultats avec une cote c1 et c2, et que la somme totale est s, 
+			// alors s2 (mise sur le deuxème resultat) = (s*c1)/(c1+c2)
+		} 
+
+	} else if (otherSites.length === 2){
+		// DEUX AUTRES SITES
+		// donc un pari sur chaque site
+		// pour l'instant on parie en fonction des soldes restant sur chaque site
+		// TODO: 
+		//		improvement: on devrait choisir mieux chaque pari sru chaque site
+		// 		en ayant conscience des sites, des bonus restant à valider...
+		// 		y a forcément des sites où on veut perdre
+		//		
+		
+		for (var i = 0; i < otherSites.length;i++){
+			var otherSite = otherSites[i];
+			var otherSiteSum = 0;
+			var otherSiteUsingBonusSolde = false;
+			if (otherSite.solde > 0){
+				otherSiteSum = otherSite.solde;
+				otherSite.solde = 0;
+			} else {
+				// on utilise le bonus
+				otherSiteSum = otherSite.bonus_solde;
+				otherSite.bonus_solde = 0;
+				otherSiteUsingBonusSolde = true;
+			}
+
+			otherSite.chosenBets = [];
+
+			// normalement il y aura bien deux other Sites odd Types
+			// car forcément le premier site n'aura pas un pari double chance
+
+			otherSite.chosenBets.push({
+				odd : chosenGame[otherSitesOddTypes[i]],
+				odd_type : otherSitesOddTypes[i],
+				sum : otherSiteSum,
+				using_bonus_solde : otherSiteUsingBonusSolde
+			});
+		};
+	}
+
+	// LOGGING (....)
+	
+	gameLogObject[3] = false;
+
+	var allSites = [];
+	allSites.push(chosenSite);
+	otherSites.forEach(function(otherSite){
+		allSites.push(otherSite);
+	});
+
+	allSites.forEach(function(site){
+		site.chosenBets.forEach(function (chosenBet){
+			console.log('[Bet #%s] Site %s - Pari sur %s - Cote %s - Somme %s (%s)',
+				betNumber,site.name,printOddTypes(chosenGame,chosenBet.odd_type),chosenBet.odd,chosenBet.sum.toFixed(2),(chosenBet.using_bonus_solde === true)? 'Bonus':'Solde normal');
+			//logs.push({type:'pari',msg:`Pari ${betNumber} : Site ${site.name} - On va parier ${chosenBet.sum} € (${(chosenBet.using_bonus_solde === true)? 'Bonus':'Solde normal'}) sur ${printOddTypes(chosenGame,chosenBet.odd_type)} à une côte de ${chosenBet.odd}`});
+			var indexlog = 0;
+			if (chosenBet.odd_type === 'home_odd' || chosenBet.odd_type === 'home_draw_odd'){
+				indexlog = 0;
+			} else if (chosenBet.odd_type === 'draw_odd' || chosenBet.odd_type === 'away_draw_odd'){
+				indexlog = 1;
+			} else if (chosenBet.odd_type === 'away_odd' || chosenBet.odd_type === 'home_away_odd'){
+				indexlog = 2;
+			} 
+			if ((chosenBet.odd_type === 'home_draw_odd') || (chosenBet.odd_type === 'home_draw_odd') || (chosenBet.odd_type === 'home_draw_odd')){
+				gameLogObject[3] = true;
+			}
+
+			gameLogObject[indexlog] = {
+				site : site.name, 
+				odd:chosenBet.odd, 
+				who:printOddTypes(chosenGame,chosenBet.odd_type), 
+				bet:chosenBet.sum.toFixed(2),
+				using_bonus_solde_text : ((chosenBet.using_bonus_solde === true)? 'Bonus':'Solde normal'),
+				winclass:''
+			};
+		});
+	});
+
+}
+
+
+var oldFindBestSiteWithBonusTypeAndBestGame = function(sites,games,betNumber){
+	var chosenSite;
+	var otherSite;
+	var logBonusType = '';
+	var chosenGameObj;
+
+	var siteFreeWinOrLoseFound = findBestSiteWithBonusType(sites,'free_win_or_lose');
+	if (siteFreeWinOrLoseFound >= 0){
+		chosenSite = sites[siteFreeWinOrLoseFound];
+		otherSite = sites[siteFreeWinOrLoseFound === 0 ? 1 : 0];
+		console.log('[Bet #%s] free_win_or_lose - Pari sur les deux sites suivants : %s et %s',betNumber,chosenSite.name,otherSite.name);
+		logBonusType = `Pari ${betNumber} : On va parier sur ${chosenSite.name} (Pari gratuit si gagnant ou perdant) et ${otherSite.name} `;
+		
+		// quand c'est free_win_or_lose : on va gagner le bonus quoiqu'il arrive 
+		// DONC le mieux c'est d'avoir la cote la plus basse possible sur le site free_win_or_lose
+		// (pour pouvoir maximiser les autres cotes)
+		// et il faut qu'elle soit au-dessus de min_odd 
+		console.log('[Bet #%s] ###### CHOOSING GAME',betNumber);
+		// ######## DECIDER DU MATCH ##########
+		chosenGameObj = findBestGame(games,chosenSite.first_bet_min_odd,'win');
+		
+	} else {
+		var siteRefundFound = findBestSiteWithBonusType(sites,'refund');
+		if (siteRefundFound >= 0){
+			chosenSite = sites[siteRefundFound];
+			otherSite = sites[siteRefundFound === 0 ? 1 : 0];
+			console.log('[Bet #%s] refund - Pari sur les deux sites suivants : %s et %s',betNumber,chosenSite.name,otherSite.name);
+			logBonusType = `Pari ${betNumber} : On va parier sur ${chosenSite.name} (Pari remboursé) et ${otherSite.name} `;
+			
+			// quand c'est refund, 
+			// 		- si le bonus est en 'not yet', on préfère perdre le pari sur le site 'refund' et débloquer le bonus
+			//		- sinon, on préfère gagner le pari, donc cote plus proche de 2.
+			// 18 mai: cette règle est fausse: là entre Netbet et France Pari on choisit Netbet et comme c'est en 'not yet' au début
+			// on essaie de perdre sur Netbet. Alors qu'on veut évidemment gagner sur Netbet car on a choisi le site avec les plus grosses conditions
+			// Reellement il faudrait prendre le site avec les plus faibles conditions et essayer de perdre sur celui-ci, non?
+			// TODO : il faudra gérer le fait que à cause des bonus à valider sur l'autre site du pari, c'est peut-être nécessaire de voir
+			// la cote minimale pour ces validations...
+			// TODO 15 mai: peut-être venu le temps de faire un findBestGame(games,sites) qui prennent en compte les règles
+			// les bonus, ceci cela... voire même qui fasse le "findBestSiteWithBonusType" directement
+
+			console.log('[Bet #%s] ###### CHOOSING GAME',betNumber);
+			// ######## DECIDER DU MATCH ##########
+			
+			if (chosenSite.bonus_status === 'not yet'){
+				chosenGameObj = findBestGame(games,3.5,'lose');
+			} else {
+				chosenGameObj = findBestGame(games,2,'win');
+			}
+		} else {
+			// no free_win_or_lose and no refund
+			var siteFreeLoseFound = findBestSiteWithBonusType(sites,'free_lose');
+			if (siteFreeLoseFound >= 0){
+				chosenSite = sites[siteFreeLoseFound];
+				otherSite = sites[siteFreeLoseFound === 0 ? 1 : 0];
+				console.log('[Bet #%s] free_lose - Pari sur les deux sites suivants : %s et %s',betNumber,chosenSite.name,otherSite.name);
+				logBonusType = `Pari ${betNumber} : On va parier sur ${chosenSite.name} (Pari gratuit si perdant) et ${otherSite.name} `;
+				
+				// quand c'est free_lose, on gagne le bonus que si on perd
+				// donc pour l'instant on essaie de prendre un pari avec une cote assez grosse
+				// TODO : il faudra gérer le fait que à cause des bonus à valider sur l'autre site du pari, c'est peut-être nécessaire de voir
+				// la cote minimale pour ces validations...
+				// TODO 15 mai: peut-être venu le temps de faire un findBestGame(games,sites) qui prennent en compte les règles
+				// les bonus, ceci cela... voire même qui fasse le "findBestSiteWithBonusType" directement
+				console.log('[Bet #%s] ###### CHOOSING GAME',betNumber);
+				// ######## DECIDER DU MATCH ##########
+				chosenGameObj = findBestGame(games,3.5,'lose');
+			} else {
+				// tous les autres cas donc on s'en fiche
+				chosenSite = sites[0];
+				otherSite = sites[1];
+				console.log('[Bet #%s] other cases - Pari sur les deux sites suivants : %s et %s',betNumber,chosenSite.name,otherSite.name);
+				logBonusType = `Pari ${betNumber} : On va parier sur ${chosenSite.name} (Ni pari gratuit ni pari remboursé) et ${otherSite.name} `;
+			
+				// for other cases we just decide a game with a odd close to 2, and 'win'
+				// TODO: should probably be improved
+				chosenGameObj = findBestGame(games,2,'win');
+
+			}
+		}
+	}
+
+	return {
+		chosenSite : chosenSite,
+		otherSite : otherSite,
+		logBonusType : logBonusType,
+		chosenGameObj : chosenGameObj
+	};
+
+
 }
 
 /* 	return the index in the list of sites

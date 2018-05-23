@@ -56,7 +56,7 @@ var createNewSites = function(iterNb){
       bonus_status:'not yet',bonus_type:'refund',bonus_limit:190,bonus_remaining:0,bonus_solde:0,bonus_percentage:100,first_bet_min_odd:0,bonus_min_odd:2,times:6}, // Netbet: Pierre essaie de gagner le 1er pari - cote de 2
     {name:'PMU',solde:0,deposit:0,deposit_pierre:100,withdraw:0,site_status:'not yet',order_pierre:7,iterNb:iterNb,
       commission_type:'CPA',commission_amount:40,commission_availability:true,
-      bonus_status:'not yet',bonus_type:'none',bonus_limit:25,bonus_remaining:0,bonus_solde:0,bonus_percentage:25,first_bet_min_odd:0,bonus_min_odd:0,times:0}, // PMU: on essaie de gagner le 1er pari?
+      bonus_status:'not yet',bonus_type:'none',bonus_limit:100,bonus_remaining:0,bonus_solde:0,bonus_percentage:25,first_bet_min_odd:0,bonus_min_odd:0,times:0}, // PMU: on essaie de gagner le 1er pari?
     {name:'BWin',solde:0,deposit:0,deposit_pierre:100,withdraw:0,site_status:'not yet',order_pierre:8,iterNb:iterNb,
       commission_type:'RS',commission_amount:25,commission_availability:true,
       bonus_status:'not yet',bonus_type:'free_lose',bonus_limit:107,bonus_remaining:0,bonus_solde:0,bonus_percentage:100,first_bet_min_odd:0,bonus_min_odd:0,times:1}, // BWin : on essaie de perdre le 1er pari? 

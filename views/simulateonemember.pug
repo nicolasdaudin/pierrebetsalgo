@@ -11,9 +11,9 @@ html
 		style
 			include style.css
 	body
-		h2(id='iter'+ nb) Iteration no #{nb} - Matchs
+		h2(id='iter'+ nb) Iteration no #{nb} - Matchs (cotes de Pinnacle)
 		
-		table
+		table(class='small')
 			thead
 				td Date
 				td Domicile
@@ -37,7 +37,10 @@ html
 		.
 			Capital initial #{init_bankroll} € - Capital final #{final_bankroll} € 
 		br
-		span(style={color: 'red'}) Gains finaux : #{gains_finaux} (frais de #{frais} déduits)
+		if gains_finaux > 0
+			span(style={color: 'green'}) Gains finaux : #{gains_finaux} (frais de #{frais} déduits)
+		else
+			span(style={color: 'red'}) Gains finaux : #{gains_finaux} (frais de #{frais} déduits)
 		br
 		.
 			Nb de paris joués : #{final_betNumber} paris
