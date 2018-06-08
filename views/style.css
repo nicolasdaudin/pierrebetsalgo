@@ -32,7 +32,7 @@ table.small th, table.small td {
 
 table.insidelogs th, table.insidelogs td { 
     font-size:0.9em;
-    padding: 2px;
+   
     font-weight : normal ;
     text-align:center;
 } 
@@ -40,6 +40,46 @@ table.insidelogs {
      padding-left: 30px;
      border:0;
 }
+
+
+table.sites thead, table.sites thead td { 
+    color:white;
+    background-color:black;   
+   
+    font-weight : normal ;
+    text-align:center;
+} 
+
+table.sites td {
+    padding:5px;
+    border:0;
+}
+
+table.sites tbody tr td.sitename {
+    background-color:grey;
+}
+
+table.sites tbody tr.done {
+    background-color:#c5f7c7;
+}
+
+table.sites,table tbody.sites {
+    border:0;
+    padding-top:20px;
+    padding-left:30px;
+    border:0;
+    font-size:0.8em;
+}
+
+table.sites td.bankroll {
+    color:black;
+    background-color:white;
+    font-weight:bold;
+    font-size:1.1em;
+    border:1px;
+
+}
+
 
 .visits { 
 	font-size:1.1em;
@@ -70,26 +110,23 @@ table.insidelogs {
 }
 
 .retrait {
-    background-image : url('https://png.icons8.com/office/25/000000/left.png');
+    background-image : url('../img/left.png');
     background-position: left center;
     background-repeat: no-repeat;
 }
 
-table.insidelogs th.win, table.insidelogs thead td.win {
-    color:blue;
-    font-size:2em;
-}
+
 
 .depot {
-    background-image : url('https://png.icons8.com/office/25/000000/right.png');
+    background-image : url("../img/right.png");
     background-position: left center;
     background-repeat: no-repeat;
    
        
 }
 
-.bankroll {
-    background-image : url('https://png.icons8.com/color/25/000000/money-box.png');
+span.bankroll {
+    background-image : url('./.img/money-box.png');
     background-position: left center;
     background-repeat: no-repeat;
     

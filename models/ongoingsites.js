@@ -25,7 +25,7 @@ var ongoingsitesSchema = new mongoose.Schema({
   bonus_min_odd : Number, // 2.4 (cote minimum) - 0 si pas de cote minimum
   first_bet_min_odd : Number, // cote minimum pour le premier pari sinon pas de bonus - 0 si pas de cote minimum
   times : Number, // 4 (number of "times" to validate the bonus) - 0 si pas de "times" 
-  site_status: String, // 'not yet','ongoing','done',
+  site_status: String, // 'not yet','ongoing','done', 'just_started'
   order_pierre : Number
 });
 
@@ -84,8 +84,10 @@ var createNewSites = function(iterNb){
 
 };
 
+var findSites = function(iterationNb,site_status,sites_not_allowed,nb_of_sites){
+
+};
 
 
 
-
-module.exports = {OngoingSites,resetOngoingSites,createNewSites};
+module.exports = {OngoingSites,resetOngoingSites,createNewSites,findSites};
