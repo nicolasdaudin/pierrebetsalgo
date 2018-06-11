@@ -1783,6 +1783,7 @@ var findBestSiteWithBonusType = function (sites,bonus_type){
 	
 }
 
+/**
 app.get('/listofgames',function(req,res){
 	const loopFrom = moment('2017-01-13');
 	const loopUntil = moment('2017-05-21');
@@ -1828,6 +1829,7 @@ app.get('/listofgames',function(req,res){
 
 
 });
+*/
 
 app.get('/games', function (req, res) {
   
