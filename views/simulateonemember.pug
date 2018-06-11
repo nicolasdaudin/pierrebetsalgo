@@ -10,9 +10,10 @@ html
 	head
 		style
 			include style.css
+		script(src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js')
+		script(src='../js/simulate.js')
 	body
 		h2(id='iter'+ nb) Iteration no #{nb} - Matchs (cotes de Pinnacle)
-		
 		table(class='small')
 			thead
 				td Date
@@ -80,8 +81,27 @@ html
 									span #{log.gameLogObject[2].site}
 									br
 									span #{log.gameLogObject[2].bet} € (#{log.gameLogObject[2].using_bonus_solde_text})
-				when "sites"
-										
+				when "games"
+					span(class='log') Matchs Disponibles : <a href="#0" onclick="showHideGames(#{nb},#{log.betNumber});">Afficher/Cacher</a>
+					br
+					div(class=`games_log games_${nb}_${log.betNumber}`)
+						table(class='small')
+							thead
+								td Date
+								td Domicile
+								td Match Nul
+								td Extérieur
+							each game in log.games
+								tr
+									td #{prettyDate(game.date)}
+									td #{game.home_team} (#{game.home_odd})
+									td (#{game.draw_odd})
+									td #{game.away_team} (#{game.away_odd})	
+				when "sites"	
+					- 
+						var totalDeposit = 0;
+						var totalSolde = 0;
+						var totalRetrait = 0;									
 					table(class='sites')
 						thead
 							td Site
@@ -92,6 +112,10 @@ html
 							td Bonus restant à valider
 							td Retrait
 						each site in log.info.sites	
+							- 
+								totalDeposit = (totalDeposit + site.deposit)
+								totalSolde = (totalSolde + site.solde + site.bonus_solde)
+								totalRetrait = (totalRetrait + site.withdraw)
 							tr(class=`${site.site_status}`)
 								td(class='sitename') #{site.name}
 								case site.site_status
@@ -108,8 +132,20 @@ html
 								td #{site.bonus_solde}
 								td #{site.bonus_remaining}
 								td #{site.withdraw}
+						tr(class='sites_total')
+							td TOTAL
+							td 
+							td #{totalDeposit.toFixed(2)}
+							td(colspan=2) #{totalSolde.toFixed(2)}							 
+							td
+							td #{totalRetrait.toFixed(2)}
+						tr(class='sites_total')
+							-
+								var totalGains = (totalRetrait - totalDeposit + totalSolde - 97 ).toFixed(2)
+							td(colspan=6) Gains (frais de 97 € déduits ) : 
+							td #{totalGains} €
 						tr
-							td(colspan=7 class='bankroll') Bankroll dispo #{log.info.bankroll} 
+							td(colspan=7 class='bankroll') Bankroll dispo #{log.info.bankroll} €
 				default
 					span(class=`log ${log.type}`) #{log.msg}
 			br

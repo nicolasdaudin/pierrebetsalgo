@@ -539,6 +539,8 @@ var simulateManyMembers = function(iterNb,callbackWhilstManyIterations){
 							function decideGameAndBets(callbackDecideBets){
 								// les nouveaux sites ont été décidés
 								// on rajoute donc le tableau des sites dans le logPush
+
+								
 								OngoingSites.find({iterNb:iterNb,site_status:{$in:['ongoing','just_started','done']}},{},{sort:{order_pierre:1}},function(err,startedSites){
 									logs.push({type:'sites',info: { sites:startedSites, bankroll: bankroll}});
 
@@ -568,8 +570,8 @@ var simulateManyMembers = function(iterNb,callbackWhilstManyIterations){
 										var chosenOddType = chosenGameObj.odd_type;
 										var chosenGame = games[indexChosenGame];
 										var gameLogObject = [];
-										
-										decideBets(chosenSite,otherSites,chosenGame,chosenOddType,logs,
+
+										decideBets(chosenSite,otherSites,games,chosenGame,chosenOddType,logs,
 											logBonusType, gameLogObject,betNumber)
 
 										var allSites = [];
@@ -712,6 +714,7 @@ var computeResultGame = function(chosenGames,chosenGame,allSites,bankroll,betNum
 	var winningOdds = findWinningOdds(final_result);
 	chosenGame.final_result = final_result; //overwriting for display purpose
 	chosenGames.push(chosenGame);
+
 
 	// LOGGING 
 	var indexlog = 0;
@@ -1402,7 +1405,7 @@ var findBestSiteWithBonusTypeAndBestGame = function(sites,games,betNumber){
 	var chosenGameObj;
 
 	var bestSiteConditionsInOrder = [
-		{desc:'Bonus pas encore commencé et beaucoup de conditions',goal:'win',suggested_game_odd:2,// 2
+		{desc:'Bonus pas encore commencé et beaucoup de conditions',goal:'win',suggested_game_odd:1,// 2
 			bonus_type:null,bonus_status:'not yet',all_sites:false,min_bonus_min_odd:1,min_times:3},
 		{desc:'Pari Gratuit si perdant ou gagnant',goal:'win',suggested_game_odd:1.5, //1.5
 			bonus_type:'free_win_or_lose',bonus_status:'not yet',all_sites:false,min_bonus_min_odd:0,min_times:0},
@@ -1472,13 +1475,15 @@ var findBestSiteWithBonusTypeAndBestGame = function(sites,games,betNumber){
 
 }
 
-var decideBets = function(chosenSite,otherSites,chosenGame,
+var decideBets = function(chosenSite,otherSites,games,chosenGame,
 	chosenOddType,logs,logBonusType,gameLogObject,betNumber){
 	
 	
 	console.log('[Bet #%s] %s : %s - %s',
 		betNumber,moment(chosenGame.date).format('DD MMM'),chosenGame.home_team,chosenGame.away_team);
 	logs.push({type:'pari_important',msg:`Pari ${betNumber} : Match du ${moment(chosenGame.date).format('DD MMM')} entre ${chosenGame.home_team} et ${chosenGame.away_team} `});
+	// on rajoute le sgams dans le log push
+	logs.push({type:'games',games:games,betNumber:betNumber});
 	logs.push({type:'pari',msg:logBonusType});
 
 	
@@ -1839,11 +1844,17 @@ app.get('/games', function (req, res) {
 
 app.get('/bettingsites', function (req, res) {
   
+  resetOngoingSites();
+  createNewSites(1);
+  setTimeout( function(){
+	  	OngoingSites.find({},{},{sort:{order_pierre:1}},function(err,result){
+		  	console.log('nb of ongoingsites found',result.length);
+		  	res.render('bettingsites',{sites:result});
+	  	});
+
+
+  	},100);
   
-  OngoingSites.find({},{},{sort:{order_pierre:1}},function(err,result){
-  	console.log('ongoingsites found',JSON.stringify(result));
-  	res.render('bettingsites',{sites:result});
-  });
 
 });
 
