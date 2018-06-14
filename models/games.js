@@ -18,18 +18,12 @@ gamesSchema.index({date:1,home_team:1,away_team:1}, {unique: true});
 
 var Games =  mongoose.model('Games', gamesSchema);
 
-var findBetweenDates = function(begin,end,callback){
-  Games.find({date: {$gte : new Date(begin), $lte:new Date(end)}},function (err,result){
-      // result is of type 'model'. Don't ask why, it's the way it appears when we debug...
-        if (err) {
-          //console.log('findBetweenDates ERROR :',err);
-          callback(err,false);
-        } else {
-          //console.log('findBetweenDates SUCCESS :',result);
-          callback(null,result);
-        } 
-    });
-};
+async function findBetweenDates(begin,end) {  
+    
+    var result = await Games.find({date: {$gte : new Date(begin), $lte:new Date(end)}}).exec();
+    return result;
+
+}
 
 var removeDB = function(){
   console.log("removeDB() games");

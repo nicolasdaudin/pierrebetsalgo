@@ -140,7 +140,7 @@ app.get('/simulatemanymembers/:nb',function(req,res){
 	
 });
 
-var simulateManyMembers = function(iterNb,callbackWhilstManyIterations){
+async function simulateManyMembers (iterNb,callbackWhilstManyIterations){
 	
 	var bankroll = BANKROLL_INIT;
 	var betNumber = 1;
@@ -164,499 +164,393 @@ var simulateManyMembers = function(iterNb,callbackWhilstManyIterations){
 	createNewSites(iterNb);
 
 	async.doWhilst(
-		function dofunction(callbackDoWhilst){
+		async function dofunction(){
 			//console.log('dates',tempBegin,tempEnd);
 
-			Games.findBetweenDates(tempBegin,tempEnd,function(err,games){
+			try {
+				
+				var games = await Games.findBetweenDates(tempBegin,tempEnd);
+				
 				console.log('[Bet #%s] Nb of games found between %s and %s :',betNumber,tempBegin.format('DD MMM'),tempEnd.format('DD MMM'),games.length);
-				if (games && games.length > 4){
+				if (games && games.length <= 4){
+					tempEnd = moment(tempEnd).add(1,'days');
+					return;
+				}
 
-					// ######## DECIDER DES SITES SUR LESQUELS ON PARIE - SI BESOIN, EN OUVRIR UN NOUVEAU
-					// VOIR LES SITES AVAILABLE
-					OngoingSites.find({iterNb:iterNb,site_status:'ongoing'},function(err,ongoingsites){
-						async.waterfall([
+				// ######## DECIDER DES SITES SUR LESQUELS ON PARIE - SI BESOIN, EN OUVRIR UN NOUVEAU
+				// VOIR LES SITES AVAILABLE
+				var ongoingsites = await OngoingSites.find({iterNb:iterNb,site_status:'ongoing'}).exec();
+				
+				
+				if ( !ongoingsites || ongoingsites.length === 0 || ongoingsites.length === 1){
+					// aucun site, il faut rajouter des sites
+					// ou bien un seul site, on est plus au début, on rajoute quand même deux sites
 
-							function decideSites(callbackDecideSites){
-								if ( !ongoingsites || ongoingsites.length === 0 || ongoingsites.length === 1){
-									// aucun site, il faut rajouter des sites
-									// ou bien un seul site, on est plus au début, on rajoute quand même deux sites
+					// pour l'instant, on prend les deux premies sites 'not yet' de la liste de Pierre
+					var notyetsites = await OngoingSites.find({iterNb:iterNb,site_status:'not yet'},{},{sort:{order_pierre:1},limit:2}).exec();
 
-									// pour l'instant, on prend les deux premies sites 'not yet' de la liste de Pierre
-									OngoingSites.find({iterNb:iterNb,site_status:'not yet'},{},{sort:{order_pierre:1},limit:2},function(err,notyetsites){
+					if (!notyetsites || notyetsites.length === 0){
+						// no more 'not yet' sites either, it means we are done with all the sites
+						console.log('[Bet #%s] NO MORE SITES, WE STOP',betNumber);
+						logs.push({type:'site',msg:'Plus de site disponible, simulation terminée'});
+						noMoreAvailableSites = true;
+						return ;
 
-										if (!notyetsites || notyetsites.length === 0){
-											// no more 'not yet' sites either, it means we are done with all the sites
-											console.log('[Bet #%s] NO MORE SITES, WE STOP',betNumber);
-											logs.push({type:'site',msg:'Plus de site disponible, simulation terminée'});
-											noMoreAvailableSites = true;
-											callbackDoWhilst();
+					} else if (notyetsites && notyetsites.length === 1){
+						// only one site left
+						console.log('[Bet #%s] ONLY ONE SITE LEFT, WE STOP',betNumber);											
+						logs.push({type:'site',msg:'Plus qu\'un seul site dispo, simulation terminée'});
+						noMoreAvailableSites = true;
+						return ;
+					} else {
 
-										} else if (notyetsites && notyetsites.length === 1){
-											// only one site left
-											console.log('[Bet #%s] ONLY ONE SITE LEFT, WE STOP',betNumber);											
-											logs.push({type:'site',msg:'Plus qu\'un seul site dispo, simulation terminée'});
-											noMoreAvailableSites = true;
-											callbackDoWhilst();
-										} else {
+						console.log('[Bet #%s] EN TRAIN DE CHOISIR PARMI CES DEUX SITES: %s et %s',betNumber,notyetsites[0].name,notyetsites[1].name);		
 
-											console.log('[Bet #%s] EN TRAIN DE CHOISIR PARMI CES DEUX SITES: %s et %s',betNumber,notyetsites[0].name,notyetsites[1].name);		
+						console.log('chooseBetweenTwoSites');
 
-											async.waterfall([
-												function chooseBetweenTwoSites(callbackChooseBetweenTwoSites){
-													console.log('chooseBetweenTwoSites');
+						// on regarde si les bonus des deux sites choisis sont inférieurs à la bankroll
+						var firstSite = notyetsites[0];
+						var secondSite = notyetsites[1];
+						var chosenSiteNb = 0;
+						var otherSiteNb = -1;
 
-													// on regarde si les bonus des deux sites choisis sont inférieurs à la bankroll
-													var firstSite = notyetsites[0];
-													var secondSite = notyetsites[1];
-													var chosenSiteNb = 0;
-													var otherSiteNb = -1;
-
-													if (ongoingsites.length > 0 && (firstSite.bonus_limit + secondSite.bonus_limit > bankroll)){
-														// dans le cas où il y a encore au moins un site ongoing, on ne démarre pas forcément deux sites
-														// si la somme des bonus qu'on peut récupérer est supérieure à la bankroll actuelle
-														// pour maximiser les gains, on ne va donc démarrer qu'un seul site au lieu de deux
-														// on prendra le site avec le plus gros bonus (inférieur à la bankroll)
-														if (firstSite.bonus_limit > secondSite.bonus_limit){
-															if (firstSite.bonus_limit <= bankroll) {
-																chosenSiteNb = 0;
-															} else if (secondSite.bonus_limit <= bankroll){
-																chosenSiteNb = 1;
-															} else {
-																// les deux bonus sont plus gros que la bankroll, on choisit donc le site au hasard
-																chosenSiteNb = Math.floor(Math.random() * 2);
-															}
-														} else if (firstSite.bonus_limit === secondSite.bonus_limit) {
-															// même bonus
-															// on choisit le site avec les conditions de bonus les plus intéressantes
-															if (firstSite.times < secondSite.times){
-																chosenSiteNb = 0;
-															} else if (firstSite.times > secondSite.times){
-																chosenSiteNb = 1;
-															} else {
-																// même nombre de paris pour valider
-																// on regarde le bonus_min_odd
-																if (firstSite.bonus_min_odd < secondSite.bonus_min_odd){
-																	chosenSiteNb = 0;
-																} else if (firstSite.bonus_min_odd > secondSite.bonus_min_odd){
-																	chosenSiteNb = 1;
-																} else {
-																	// même nombre de paris pour valider, et même bonus_min_odd
-																	// on choisit donc le site au hasard
-																	chosenSiteNb = Math.floor(Math.random() * 2);
-																}
-															}
-														} else {
-															// bonus du second site plus grand que bonus du premier site
-															if (secondSite.bonus_limit <= bankroll){
-																chosenSiteNb = 1;
-															} else if (firstSite.bonus_limit <= bankroll){
-																chosenSiteNb = 0;
-															} else {
-																// les deux bonus sont plus gros que la bankroll, on choisit donc le site au hasard
-																chosenSiteNb = Math.floor(Math.random() * 2);
-															}
-														}
-
-														//console.log('[Bet #%s] ###### AJOUT d\'1 SITE : %s (pas assez de bankroll pour commencer les 2 sites)',betNumber,notyetsites[chosenSiteNb].name);
-
-														// ON essaie quand même de rajouter un deuxième site, en cherchant un site avec une bonus_limit inférieur à ce qui reste de bankroll
-														// (on prend le premier site)
-														// TODO: choisir le meilleur site
-														var remainingBankroll = bankroll - notyetsites[chosenSiteNb].bonus_limit;
-														var siteNames = [];												
-														siteNames.push(notyetsites[chosenSiteNb].name);		
-														if (ongoingsites.length > 0){
-															ongoingsites.forEach(function (site){														
-																siteNames.push(site.name);
-															});
-														}
-
-														OngoingSites.find({iterNb:iterNb,site_status:'not yet',bonus_limit:{$lte:remainingBankroll},name:{$nin:siteNames}},{},{sort:{bonus_limit:1},limit:1},function(err,bonussites){
-
-															if (bonussites && bonussites.length > 0){
-																notyetsites.push(bonussites[0]);
-																otherSiteNb = 2;
-																console.log('[Bet #%s] ###### AJOUT de 2 SITES : %s et %s (on est allés chercher un deuxième site avec un bonus compatible)',betNumber,notyetsites[chosenSiteNb].name,bonussites[0].name);
-															} else {
-																console.log('[Bet #%s] ###### AJOUT d\'1 SITE : %s (pas assez de bankroll pour commencer les 2 sites)',betNumber,notyetsites[chosenSiteNb].name);																
-															}
-															callbackChooseBetweenTwoSites(null,{chosenSiteNb,otherSiteNb});
-															
-														});
-													} else {
-														// cas de zéro site ongoing: on doit absolument démarrer deux sites
-														// cas de au moins un site ongoing : la somme des bonus des deux sites est égale ou inférieure à la bankroll
-														// on peut donc effectivement commencer les deux sites.
-														//console.log('Nb sites found',sites.length);
-														console.log('[Bet #%s] ###### AJOUT DE 2 NOUVEAUX SITES',betNumber);
-														
-
-														// On assigne au hasard une partie de la bankroll selon le bonus_limit
-														// (On verra ensuite pour leur assigner un dépôt FIXE depuis la BD)
-														chosenSiteNb = Math.floor(Math.random() * 2);
-														otherSiteNb = (chosenSiteNb === 1) ? 0 : 1;
-
-														callbackChooseBetweenTwoSites(null,{chosenSiteNb,otherSiteNb});
-
-													}
-
-												}],
-												function afterChoosingBetweenTwoSites(err,result){
-													console.log('afterChoosingBetweenTwoSites');
-
-													var chosenSiteNb = result.chosenSiteNb;
-													var otherSiteNb = result.otherSiteNb;
-
-													// On a deux sites, ou trois
-													// Si on a deux sites, on regarde que ces deux sites ne sont pas tous les deux 'refund' sans avoir commencé le bonus
-													// car si c'est le cas, on ne peut pas séparer le premier pari car s'il est perdant, on veut récupérer un max
-													// tout cela à partir du second pari
-													var premierPariPerdantBonusTypes = ['free_lose','refund','free_win_or_lose'];
-													var siteNames = [];
-													var nbOfSites = 0;
-													var siteBonusLimits = 0;
-													siteNames.push(notyetsites[chosenSiteNb].name);
-													nbOfSites++;
-													siteBonusLimits += notyetsites[chosenSiteNb].bonus_limit;
-
-													if (ongoingsites.length > 0){
-														ongoingsites.forEach(function (site){
-															nbOfSites ++;
-															siteNames.push(site.name);
-															siteBonusLimits += site.bonus_limit;
-														});
-													}
-													
-													if (otherSiteNb > -1){
-														siteNames.push(notyetsites[otherSiteNb].name);
-														nbOfSites++;
-														siteBonusLimits += notyetsites[otherSiteNb].bonus_limit;
-													}
-													console.log('[Bet #%s] %s site(s): %s',betNumber,nbOfSites,siteNames);
-
-													//var nbOfSites = ongoingsites.length + 1 + (otherSiteNb > -1 ? 1 : 0);
-													
-													async.waterfall([
-														function checkConditionsForThirdSite(callbackCheckThirdSite){
-															//console.log('checkConditionsForThirdSite');
-															var thirdSiteNeeded = false;
-															console.log('thirdSiteNeeded - bankroll:',bankroll);
-															if ((bankroll - siteBonusLimits ) > MIN_BONUS_NECESSARY){
-																if (betNumber > 1 && nbOfSites === 2) {	
-																	thirdSiteNeeded = true;
-																	ongoingsites.forEach(function (site){
-																		if (!premierPariPerdantBonusTypes.includes(site.bonus_type)
-																			|| (premierPariPerdantBonusTypes.includes(site.bonus_type) && site.bonus_status !== 'not yet')){
-																			// ce site n'est pas 'refund'
-																			// ce site est refund mais le bonus a déjà commencé (donc le pari remboursé ne s'applique pas)
-																			thirdSiteNeeded = false;
-																		}
-																	});
-																	var secondSiteTemp = notyetsites[chosenSiteNb];
-																	if (!premierPariPerdantBonusTypes.includes(secondSiteTemp.bonus_type)
-																		|| (premierPariPerdantBonusTypes.includes(secondSiteTemp.bonus_type) && secondSiteTemp.bonus_status !== 'not yet')){
-																		// ce site n'est pas 'refund'
-																		// ce site est refund mais le bonus a déjà commencé (donc le pari remboursé ne s'applique pas)
-																		thirdSiteNeeded = false;
-																	}
-																	if (otherSiteNb > -1){
-																		var thirdSiteTemp = notyetsites[otherSiteNb];
-																		if (!premierPariPerdantBonusTypes.includes(thirdSiteTemp.bonus_type)
-																			|| (premierPariPerdantBonusTypes.includes(thirdSiteTemp.bonus_type) && thirdSiteTemp.bonus_status !== 'not yet')){
-																			// ce site n'est pas 'refund'
-																			// ce site est refund mais le bonus a déjà commencé (donc le pari remboursé ne s'applique pas)
-																			thirdSiteNeeded = false;
-																		}
-																	}
-																}
-															} else {
-																console.log('[Bet #%s] ######## PAS DE NOUVEAUX DEPOTS - Tous les sites ongoing ou just_started sont refund et le premier pari n\'a pas été fait. Mais pas assez de bankroll pour ajouter un 3ème site',betNumber);
-																logs.push({type:'msg',msg:`Pas de nouveau dépôt. On a besoin d'un troisième site (les deux autres sites ${siteNames} ont des premiers paris remboursés) mais pas assez de bankroll`});
-																		
-															}
-
-															callbackCheckThirdSite(null,thirdSiteNeeded);
-															
-
-														},
-														function findThirdSite(thirdSiteNeeded,callbackFindThirdSite){
-															console.log('findThirdSite');
-															// tous les sites sont 'refund' et le premier pari n'a pas encore été effectué
-															// on doit donc rajouter un troisième site, on a pas le choix...													
-
-															// pour l'instant, on prend le premier site 'not yet' de la liste de Pierre
-															if (thirdSiteNeeded) {
-																OngoingSites.find({iterNb:iterNb,name:{$nin:siteNames},site_status:'not yet'},{},{sort:{order_pierre:1},limit:1},function(err,thirdsites){
-																	if (!thirdsites || thirdsites.length === 0){
-																		// no more 'not yet' sites either, it means we are done with all the sites
-																		console.log('[Bet #%s] NO MORE SITES, WE STOP',betNumber);
-																		logs.push({type:'site',msg:'Plus de site disponible, simulation terminée'});
-																		noMoreAvailableSites = true;
-																		callbackDoWhilst();
-
-																	} else {
-
-																		console.log('[Bet #%s] ######## AJOUT d\'UN SITE - Tous les sites ongoing ou just_started sont refund et le premier pari n\'a pas été fait. On rajoute un troisième site',betNumber);
-																		logs.push({type:'msg',msg:`On a besoin d'un troisième site (les deux autres sites ${siteNames} ont des premiers paris remboursés)`});
-																		var site = thirdsites[0];	
-																		callbackFindThirdSite(null,site);										
-																		
-																		/**var deposit = Math.round(Math.min(bankroll,site.bonus_limit));
-																		var newSolde = precisionRound(deposit + site.solde,2);
-																		bankroll = precisionRound(bankroll - deposit,2);
-																		console.log('[Bet #%s] Site %s - Dépôt %s - Remaining Bankroll %s',betNumber,site.name,newSolde,bankroll);
-																		logs.push({type:'depot',msg:`${site.name} - Dépôt ${deposit} - Remaining Bankroll ${bankroll.toFixed(2)}`});
-
-																		OngoingSites.update({iterNb:iterNb,name:site.name},{deposit:deposit,solde:newSolde,site_status:'just_started'},function(err,result){
-																			//console.log('Updating site %s - err:%s - result %s',site.name,err,result);
-																			console.log('[Bet #%s] callback decideSites pour site %s',betNumber,site.name);
-																			callbackDecideSites();
-																		});**/
-																		
-
-																	}
-																});
-															} else {
-																callbackFindThirdSite(null,null);	
-															}
-
-
-														}
-													],
-													function afterAllOfThem(err,thirdsite){
-														console.log('afterAllOfThem');
-														var sitesNb = [chosenSiteNb,otherSiteNb];
-														if (thirdsite){
-															console.log('[Bet #%s] afterAllOfThem - Troisième site à rajouter: %s',betNumber,thirdsite.name);
-															notyetsites.push(thirdsite);
-															sitesNb.push(2);
-														} else {
-															console.log('[Bet #%s] afterAllOfThem - Pas de troisième site à rajouter',betNumber);
-														}
-
-
-														// ON S'OCCUPE DES DEPOTS POUR CHAQUE SITE
-														//console.log('sitesNb',sitesNb);
-														//console.log('notyetsites',notyetsites);
-													
-														async.each(
-															sitesNb,
-															function updateSite(siteNb,callback){
-																if (siteNb > -1){
-
-																	var site = notyetsites[siteNb];
-																	var deposit = Math.round(Math.min(bankroll,site.bonus_limit));
-																	var newSolde = precisionRound(deposit + site.solde,2);
-																	bankroll = precisionRound(bankroll - deposit,2);
-																	console.log('[Bet #%s] Site %s - Dépôt %s - Remaining Bankroll %s',betNumber,site.name,newSolde,bankroll);
-																	logs.push({type:'depot',msg:`${site.name} - Dépôt ${deposit} - Remaining Bankroll ${bankroll.toFixed(2)}`});
-
-																	OngoingSites.update({iterNb:iterNb,name:site.name},{deposit:deposit,solde:newSolde,site_status:'just_started'},function(err,result){
-																		//console.log('Updating site %s - err:%s - result %s',site.name,err,result);
-																		console.log('[Bet #%s] callback updateSite for site %s',betNumber,site.name);
-																		callback(null,null);
-																	});
-																} else {
-																	callback(null,null);
-																}
-															},
-															function (err){
-																console.log('callback decideSites');
-																callbackDecideSites();
-															}
-														);
-
-
-													});
-
-												}
-											);
-
-
-
-											
-
-											
-										}
-									});
-							
-								} else if ( ongoingsites.length === 2 ){
-									// Y a déjà deux sites mais si la bankroll est suffisamment grande pour commencer le site suivant, on le commence
-									// TODO ou si les deux sites sont refund + pas encore commencé
-
-									// pour l'instant, on prend le premier site 'not yet' de la liste de Pierre qui a un bonus_limit inférieur à la bankroll
-									OngoingSites.find({iterNb:iterNb,site_status:'not yet',bonus_limit:{$lte:bankroll}},{},{sort:{order_pierre:1},limit:1},function(err,notyetsites){
-									//OngoingSites.find({iterNb:iterNb,site_status:'not yet'},{},{sort:{order_pierre:1},limit:1},function(err,notyetsites){
-
-										if (!notyetsites || notyetsites.length === 0){
-											/*// no more 'not yet' sites either, it means we are done with all the sites
-											console.log('[Bet #%s] NO MORE SITES, WE STOP',betNumber);
-											logs.push({type:'site',msg:'Plus de site disponible, simulation terminée'});
-											noMoreAvailableSites = true;
-											callbackDoWhilst();
-											*/
-											console.log('[Bet #%s] Pas de troisième site',betNumber);
-											callbackDecideSites();
-
-										} else {
-
-											// on regarde si le bonus du site choisi est inférieur à la bankroll
-											// si c'est le cas on peut démarrer le site
-											var site = notyetsites[0];											
-											if (site.bonus_limit > bankroll){												
-												console.log('[Bet #%s] ###### Déjà 2 sites. On ne commence pas de nouveau site, pas assez de bankroll (%s) pour le bonus du site suivant (%s,%s) dans la liste',betNumber,bankroll,site.name,site.bonus_limit);
-												logs.push({type:'site',msg:`Déjà 2 sites et pas assez de bankroll (${bankroll.toFixed(2)}) pour commencer le site suivant ${site.name} (bonus: ${site.bonus_limit})`});
-												callbackDecideSites();
-											} else {												
-												console.log('[Bet #%s] ###### Assez de bankroll pour commencer un nouveau site',betNumber);
-												
-												var deposit = Math.round(Math.min(bankroll,site.bonus_limit));
-												var newSolde = precisionRound(deposit + site.solde,2);
-												bankroll = precisionRound(bankroll - deposit,2);
-												console.log('[Bet #%s] Site %s - Dépôt %s - Remaining Bankroll %s',betNumber,site.name,newSolde,bankroll);
-												logs.push({type:'depot',msg:`${site.name} - Dépôt ${deposit} - Remaining Bankroll ${bankroll.toFixed(2)}`});
-
-												OngoingSites.update({iterNb:iterNb,name:site.name},{deposit:deposit,solde:newSolde,site_status:'just_started'},function(err,result){
-													//console.log('Updating site %s - err:%s - result %s',site.name,err,result);
-													console.log('[Bet #%s] callback decideSites pour site %s',betNumber,site.name);
-													callbackDecideSites();
-												});
-											}
-
-										}
-									});
-
+						if (ongoingsites.length > 0 && (firstSite.bonus_limit + secondSite.bonus_limit > bankroll)){
+							// dans le cas où il y a encore au moins un site ongoing, on ne démarre pas forcément deux sites
+							// si la somme des bonus qu'on peut récupérer est supérieure à la bankroll actuelle
+							// pour maximiser les gains, on ne va donc démarrer qu'un seul site au lieu de deux
+							// on prendra le site avec le plus gros bonus (inférieur à la bankroll)
+							if (firstSite.bonus_limit > secondSite.bonus_limit){
+								if (firstSite.bonus_limit <= bankroll) {
+									chosenSiteNb = 0;
+								} else if (secondSite.bonus_limit <= bankroll){
+									chosenSiteNb = 1;
 								} else {
-									// NOTHING TO DO
-									// ON PASSE A LA SUITE, ET ON PARIE
-									console.log('[Bet #%s] ###### déjà 3 sites, on ouvre rien de plus pour linstant',betNumber);
-									console.log('callback decideSites');
-									callbackDecideSites();
-
+									// les deux bonus sont plus gros que la bankroll, on choisit donc le site au hasard
+									chosenSiteNb = Math.floor(Math.random() * 2);
 								}
-							},
-
-							function decideGameAndBets(callbackDecideBets){
-								// les nouveaux sites ont été décidés
-								// on rajoute donc le tableau des sites dans le logPush
-
-								
-								OngoingSites.find({iterNb:iterNb,site_status:{$in:['ongoing','just_started','done']}},{},{sort:{order_pierre:1}},function(err,startedSites){
-									logs.push({type:'sites',info: { sites:startedSites, bankroll: bankroll}});
-
-									// on recupere à nouveau les sites qui nous intéressent
-									OngoingSites.find({iterNb:iterNb,site_status:{$in:['ongoing','just_started']}},function(err,sites){
-
-										console.log("[Bet #%s] ###### CHOOSING BETS AND SITES (among %s sites)",betNumber,sites.length);									
-										
-										// ########################################################
-										// FIND BEST SITE WITH BONUS TYPE AND BEST GAME
-										// ########################################################
-										var result = findBestSiteWithBonusTypeAndBestGame(sites,games,betNumber);
-										var chosenSite = result.chosenSite;
-
-										var otherSites = result.otherSites;
-										var chosenGameObj = result.chosenGameObj;
-										var logBonusType = result.logBonusType;
-
-										
-
-										//console.log('chosenGameObj',chosenGameObj);
-										//console.log('otherSites',otherSites);
-										//console.log('chosenSite',chosenSite);
-										//console.log('otherSite',otherSite);
-										
-										var indexChosenGame = chosenGameObj.index;
-										var chosenOddType = chosenGameObj.odd_type;
-										var chosenGame = games[indexChosenGame];
-										var gameLogObject = [];
-
-										decideBets(chosenSite,otherSites,games,chosenGame,chosenOddType,logs,
-											logBonusType, gameLogObject,betNumber)
-
-										var allSites = [];
-										allSites.push(chosenSite);
-										otherSites.forEach(function(otherSite){
-											allSites.push(otherSite);
-										});
-										
-										// updating the sites in DB
-										async.each(
-											allSites,
-											function updateSite(site,callback){
-												OngoingSites.update({iterNb:iterNb,name:site.name},
-													{
-														solde:precisionRound(site.solde,2),
-														bonus_solde:precisionRound(site.bonus_solde,2)
-													},
-													function updateSiteAfterDecide(err,result){															
-														console.log('OngoingSites - updateSiteAfterDecide - err:%s - result:%s',err,JSON.stringify(result));
-														callback();											
-													}
-												);
-											},
-											function (err){
-												console.log('callback decideBets');
-												callbackDecideBets(null,gameLogObject,chosenGame,allSites);
-											}
-										);											
-									});
-								});
-							}, 
-
-							function resultGame(gameLogObject,chosenGame,allSites,callbackResultGame){
-
-								bankroll = computeResultGame(chosenGames,chosenGame,allSites,bankroll,betNumber,logs,gameLogObject);
-								
-								async.each(
-									allSites,
-									function updateSite(site,callback){
-										OngoingSites.update({iterNb:iterNb,name:site.name},
-											{
-												solde:precisionRound(site.solde,2),
-												bonus_remaining:precisionRound(site.bonus_remaining,2),
-												bonus_status:site.bonus_status,
-												withdraw:precisionRound(site.withdraw,2),
-												site_status:site.site_status,
-												bonus_solde:precisionRound(site.bonus_solde,2)
-											},
-											function(err,result){
-												console.log('OngoingSites - updateAfterResult - err:%s - result:%s',err,JSON.stringify(result));
-												callback();											
-											}
-										);
-
-									},
-									function afterUpdateSite(err){
-										console.log('Les deux sites ont été mis à jour en base');
-
-										callbackResultGame(null,chosenGame);
-
-
+							} else if (firstSite.bonus_limit === secondSite.bonus_limit) {
+								// même bonus
+								// on choisit le site avec les conditions de bonus les plus intéressantes
+								if (firstSite.times < secondSite.times){
+									chosenSiteNb = 0;
+								} else if (firstSite.times > secondSite.times){
+									chosenSiteNb = 1;
+								} else {
+									// même nombre de paris pour valider
+									// on regarde le bonus_min_odd
+									if (firstSite.bonus_min_odd < secondSite.bonus_min_odd){
+										chosenSiteNb = 0;
+									} else if (firstSite.bonus_min_odd > secondSite.bonus_min_odd){
+										chosenSiteNb = 1;
+									} else {
+										// même nombre de paris pour valider, et même bonus_min_odd
+										// on choisit donc le site au hasard
+										chosenSiteNb = Math.floor(Math.random() * 2);
 									}
-								);
-
+								}
+							} else {
+								// bonus du second site plus grand que bonus du premier site
+								if (secondSite.bonus_limit <= bankroll){
+									chosenSiteNb = 1;
+								} else if (firstSite.bonus_limit <= bankroll){
+									chosenSiteNb = 0;
+								} else {
+									// les deux bonus sont plus gros que la bankroll, on choisit donc le site au hasard
+									chosenSiteNb = Math.floor(Math.random() * 2);
+								}
 							}
 
+							//console.log('[Bet #%s] ###### AJOUT d\'1 SITE : %s (pas assez de bankroll pour commencer les 2 sites)',betNumber,notyetsites[chosenSiteNb].name);
 
-						],function after(err,chosenGame){
-							console.log('####### NEXT GAME and ITERATION');
-							tempBegin = moment(chosenGame.date).add(2,'days');
-							tempEnd = moment(tempBegin).add(2+intervalOfDays,'days');
-							betNumber++;
-							callbackDoWhilst();
-						})
-					});
+							// ON essaie quand même de rajouter un deuxième site, en cherchant un site avec une bonus_limit inférieur à ce qui reste de bankroll
+							// (on prend le premier site)
+							// TODO: choisir le meilleur site
+							var remainingBankroll = bankroll - notyetsites[chosenSiteNb].bonus_limit;
+							var siteNames = [];												
+							siteNames.push(notyetsites[chosenSiteNb].name);		
+							if (ongoingsites.length > 0){
+								ongoingsites.forEach(function (site){														
+									siteNames.push(site.name);
+								});
+							}
+
+							var bonussites = await OngoingSites.find({iterNb:iterNb,site_status:'not yet',bonus_limit:{$lte:remainingBankroll},name:{$nin:siteNames}},{},{sort:{bonus_limit:1},limit:1}).exec();
+
+							if (bonussites && bonussites.length > 0){
+								notyetsites.push(bonussites[0]);
+								otherSiteNb = 2;
+								console.log('[Bet #%s] ###### AJOUT de 2 SITES : %s et %s (on est allés chercher un deuxième site avec un bonus compatible)',betNumber,notyetsites[chosenSiteNb].name,bonussites[0].name);
+							} else {
+								console.log('[Bet #%s] ###### AJOUT d\'1 SITE : %s (pas assez de bankroll pour commencer les 2 sites)',betNumber,notyetsites[chosenSiteNb].name);																
+							}
+							//callbackChooseBetweenTwoSites(null,{chosenSiteNb,otherSiteNb});
+								
+							
+						} else {
+							// cas de zéro site ongoing: on doit absolument démarrer deux sites
+							// cas de au moins un site ongoing : la somme des bonus des deux sites est égale ou inférieure à la bankroll
+							// on peut donc effectivement commencer les deux sites.
+							//console.log('Nb sites found',sites.length);
+							console.log('[Bet #%s] ###### AJOUT DE 2 NOUVEAUX SITES',betNumber);
+							
+
+							// On assigne au hasard une partie de la bankroll selon le bonus_limit
+							// (On verra ensuite pour leur assigner un dépôt FIXE depuis la BD)
+							chosenSiteNb = Math.floor(Math.random() * 2);
+							otherSiteNb = (chosenSiteNb === 1) ? 0 : 1;
+
+							//callbackChooseBetweenTwoSites(null,{chosenSiteNb,otherSiteNb});
+
+						}
+						console.log('afterChoosingBetweenTwoSites');
+
+						//var chosenSiteNb = result.chosenSiteNb;
+						//var otherSiteNb = result.otherSiteNb;
+
+						// On a deux sites, ou trois
+						// Si on a deux sites, on regarde que ces deux sites ne sont pas tous les deux 'refund' sans avoir commencé le bonus
+						// car si c'est le cas, on ne peut pas séparer le premier pari car s'il est perdant, on veut récupérer un max
+						// tout cela à partir du second pari
+						var premierPariPerdantBonusTypes = ['free_lose','refund','free_win_or_lose'];
+						var siteNames = [];
+						var nbOfSites = 0;
+						var siteBonusLimits = 0;
+						siteNames.push(notyetsites[chosenSiteNb].name);
+						nbOfSites++;
+						siteBonusLimits += notyetsites[chosenSiteNb].bonus_limit;
+
+						if (ongoingsites.length > 0){
+							ongoingsites.forEach(function (site){
+								nbOfSites ++;
+								siteNames.push(site.name);
+								siteBonusLimits += site.bonus_limit;
+							});
+						}
+						
+						if (otherSiteNb > -1){
+							siteNames.push(notyetsites[otherSiteNb].name);
+							nbOfSites++;
+							siteBonusLimits += notyetsites[otherSiteNb].bonus_limit;
+						}
+						console.log('[Bet #%s] %s site(s): %s',betNumber,nbOfSites,siteNames);
+
+						//var nbOfSites = ongoingsites.length + 1 + (otherSiteNb > -1 ? 1 : 0);
+						
+						console.log('checkConditionsForThirdSite');
+						var thirdSiteNeeded = false;
+						console.log('thirdSiteNeeded - bankroll:',bankroll);
+						if ((bankroll - siteBonusLimits ) > MIN_BONUS_NECESSARY){
+							if (betNumber > 1 && nbOfSites === 2) {	
+								thirdSiteNeeded = true;
+								ongoingsites.forEach(function (site){
+									if (!premierPariPerdantBonusTypes.includes(site.bonus_type)
+										|| (premierPariPerdantBonusTypes.includes(site.bonus_type) && site.bonus_status !== 'not yet')){
+										// ce site n'est pas 'refund'
+										// ce site est refund mais le bonus a déjà commencé (donc le pari remboursé ne s'applique pas)
+										thirdSiteNeeded = false;
+									}
+								});
+								var secondSiteTemp = notyetsites[chosenSiteNb];
+								if (!premierPariPerdantBonusTypes.includes(secondSiteTemp.bonus_type)
+									|| (premierPariPerdantBonusTypes.includes(secondSiteTemp.bonus_type) && secondSiteTemp.bonus_status !== 'not yet')){
+									// ce site n'est pas 'refund'
+									// ce site est refund mais le bonus a déjà commencé (donc le pari remboursé ne s'applique pas)
+									thirdSiteNeeded = false;
+								}
+								if (otherSiteNb > -1){
+									var thirdSiteTemp = notyetsites[otherSiteNb];
+									if (!premierPariPerdantBonusTypes.includes(thirdSiteTemp.bonus_type)
+										|| (premierPariPerdantBonusTypes.includes(thirdSiteTemp.bonus_type) && thirdSiteTemp.bonus_status !== 'not yet')){
+										// ce site n'est pas 'refund'
+										// ce site est refund mais le bonus a déjà commencé (donc le pari remboursé ne s'applique pas)
+										thirdSiteNeeded = false;
+									}
+								}
+							}
+						} else {
+							console.log('[Bet #%s] ######## PAS DE NOUVEAUX DEPOTS - Tous les sites ongoing ou just_started sont refund et le premier pari n\'a pas été fait. Mais pas assez de bankroll pour ajouter un 3ème site',betNumber);
+							logs.push({type:'msg',msg:`Pas de nouveau dépôt. On a besoin d'un troisième site (les deux autres sites ${siteNames} ont des premiers paris remboursés) mais pas assez de bankroll`});
+									
+						}
+
+						console.log('findThirdSite');
+						// tous les sites sont 'refund' et le premier pari n'a pas encore été effectué
+						// on doit donc rajouter un troisième site, on a pas le choix...													
+
+						// pour l'instant, on prend le premier site 'not yet' de la liste de Pierre
+						var thirdsite = undefined;
+						if (thirdSiteNeeded) {
+							var thirdsites = await OngoingSites.find({iterNb:iterNb,name:{$nin:siteNames},site_status:'not yet'},{},{sort:{order_pierre:1},limit:1});
+							if (!thirdsites || thirdsites.length === 0){
+								// no more 'not yet' sites either, it means we are done with all the sites
+								console.log('[Bet #%s] NO MORE SITES, WE STOP',betNumber);
+								logs.push({type:'site',msg:'Plus de site disponible, simulation terminée'});
+								noMoreAvailableSites = true;
+								return;
+
+							} else {
+
+								console.log('[Bet #%s] ######## AJOUT d\'UN SITE - Tous les sites ongoing ou just_started sont refund et le premier pari n\'a pas été fait. On rajoute un troisième site',betNumber);
+								logs.push({type:'msg',msg:`On a besoin d'un troisième site (les deux autres sites ${siteNames} ont des premiers paris remboursés)`});
+								thirdsite = thirdsites[0];
+							}														
+						} 
+
+						
+						console.log('afterAllOfThem');
+						var sitesNb = [chosenSiteNb,otherSiteNb];
+						if (thirdsite){
+							console.log('[Bet #%s] afterAllOfThem - Troisième site à rajouter: %s',betNumber,thirdsite.name);
+							notyetsites.push(thirdsite);
+							sitesNb.push(2);
+						} else {
+							console.log('[Bet #%s] afterAllOfThem - Pas de troisième site à rajouter',betNumber);
+						}
 
 
+						// ON S'OCCUPE DES DEPOTS POUR CHAQUE SITE
+						//console.log('sitesNb',sitesNb);
+						//console.log('notyetsites',notyetsites);
+						sitesNb.forEach(async function (siteNb){
+							console.log('[Bet #%s] after afterAllOfThem - updateSite',betNumber);
+							if (siteNb > -1){
 
+								var site = notyetsites[siteNb];
+								var deposit = Math.round(Math.min(bankroll,site.bonus_limit));
+								var newSolde = precisionRound(deposit + site.solde,2);
+								bankroll = precisionRound(bankroll - deposit,2);
+								console.log('[Bet #%s] Site %s - Dépôt %s - Remaining Bankroll %s',betNumber,site.name,newSolde,bankroll);
+								logs.push({type:'depot',msg:`${site.name} - Dépôt ${deposit} - Remaining Bankroll ${bankroll.toFixed(2)}`});
 
+								var result = await OngoingSites.update({iterNb:iterNb,name:site.name},{deposit:deposit,solde:newSolde,site_status:'just_started'}).exec();
+								//console.log('Updating site %s - err:%s - result %s',site.name,err,result);
+								console.log('[Bet #%s] callback updateSite for site %s',betNumber,site.name);
+							}
+						});
+						console.log('[Bet #%s] after all updateSite - callback decideSites',betNumber);
+					}
+				} else if ( ongoingsites.length === 2 ){
+					// Y a déjà deux sites mais si la bankroll est suffisamment grande pour commencer le site suivant, on le commence
+					// TODO ou si les deux sites sont refund + pas encore commencé
+
+					// pour l'instant, on prend le premier site 'not yet' de la liste de Pierre qui a un bonus_limit inférieur à la bankroll
+					var notyetsites = await OngoingSites.find({iterNb:iterNb,site_status:'not yet',bonus_limit:{$lte:bankroll}},{},{sort:{order_pierre:1},limit:1});
+					//OngoingSites.find({iterNb:iterNb,site_status:'not yet'},{},{sort:{order_pierre:1},limit:1},function(err,notyetsites){
+
+					if (!notyetsites || notyetsites.length === 0){
+						/*// no more 'not yet' sites either, it means we are done with all the sites
+						console.log('[Bet #%s] NO MORE SITES, WE STOP',betNumber);
+						logs.push({type:'site',msg:'Plus de site disponible, simulation terminée'});
+						noMoreAvailableSites = true;
+						callbackDoWhilst();
+						*/
+						console.log('[Bet #%s] Pas de troisième site',betNumber);
+
+					} else {
+
+						// on regarde si le bonus du site choisi est inférieur à la bankroll
+						// si c'est le cas on peut démarrer le site
+						var site = notyetsites[0];											
+						if (site.bonus_limit > bankroll){												
+							console.log('[Bet #%s] ###### Déjà 2 sites. On ne commence pas de nouveau site, pas assez de bankroll (%s) pour le bonus du site suivant (%s,%s) dans la liste',betNumber,bankroll,site.name,site.bonus_limit);
+							logs.push({type:'site',msg:`Déjà 2 sites et pas assez de bankroll (${bankroll.toFixed(2)}) pour commencer le site suivant ${site.name} (bonus: ${site.bonus_limit})`});
+
+						} else {												
+							console.log('[Bet #%s] ###### Assez de bankroll pour commencer un nouveau site',betNumber);
+							
+							var deposit = Math.round(Math.min(bankroll,site.bonus_limit));
+							var newSolde = precisionRound(deposit + site.solde,2);
+							bankroll = precisionRound(bankroll - deposit,2);
+							console.log('[Bet #%s] Site %s - Dépôt %s - Remaining Bankroll %s',betNumber,site.name,newSolde,bankroll);
+							logs.push({type:'depot',msg:`${site.name} - Dépôt ${deposit} - Remaining Bankroll ${bankroll.toFixed(2)}`});
+
+							var result = await OngoingSites.update({iterNb:iterNb,name:site.name},{deposit:deposit,solde:newSolde,site_status:'just_started'});
+							//console.log('Updating site %s - err:%s - result %s',site.name,err,result);
+							console.log('[Bet #%s] callback decideSites pour site %s',betNumber,site.name);
+						}
+
+					}
 					
+
 				} else {
-					tempEnd = moment(tempEnd).add(1,'days');
-					callbackDoWhilst();
+					// NOTHING TO DO
+					// ON PASSE A LA SUITE, ET ON PARIE
+					console.log('[Bet #%s] ###### déjà 3 sites, on ouvre rien de plus pour linstant',betNumber);
+					console.log('callback decideSites');
 				}
-			});
+
+				console.log('begin decideGameAndBets');
+					
+				var startedSites = await OngoingSites.find({iterNb:iterNb,site_status:{$in:['ongoing','just_started','done']}},{},{sort:{order_pierre:1}}).exec();
+				logs.push({type:'sites',info: { sites:startedSites, bankroll: bankroll}});
+
+				// on recupere à nouveau les sites qui nous intéressent
+				var sites = await OngoingSites.find({iterNb:iterNb,site_status:{$in:['ongoing','just_started']}}).exec();
+
+				console.log("[Bet #%s] ###### CHOOSING BETS AND SITES (among %s sites)",betNumber,sites.length);									
+				
+				// ########################################################
+				// FIND BEST SITE WITH BONUS TYPE AND BEST GAME
+				// ########################################################
+				var result = findBestSiteWithBonusTypeAndBestGame(sites,games,betNumber);
+				var chosenSite = result.chosenSite;
+
+				var otherSites = result.otherSites;
+				var chosenGameObj = result.chosenGameObj;
+				var logBonusType = result.logBonusType;
+
+				
+
+				//console.log('chosenGameObj',chosenGameObj);
+				//console.log('otherSites',otherSites);
+				//console.log('chosenSite',chosenSite);
+				//console.log('otherSite',otherSite);
+				
+				var indexChosenGame = chosenGameObj.index;
+				var chosenOddType = chosenGameObj.odd_type;
+				var chosenGame = games[indexChosenGame];
+				var gameLogObject = [];
+
+				decideBets(chosenSite,otherSites,games,chosenGame,chosenOddType,logs,
+					logBonusType, gameLogObject,betNumber)
+
+				var allSites = [];
+				allSites.push(chosenSite);
+				otherSites.forEach(function(otherSite){
+					allSites.push(otherSite);
+				});
+				
+				// updating the sites in DB
+				console.log('[Bet #%s] before updatePromisesBeforeResultGame',betNumber);
+				const updatePromisesBeforeResultGame = allSites.map((site) => updateSite(site,iterNb,betNumber));
+				await Promise.all(updatePromisesBeforeResultGame);
+
+				
+				console.log('[Bet #%s] after updatePromisesBeforeResultGame',betNumber);
+				
+				console.log('[Bet #%s] begin resultGame',betNumber);
+
+				bankroll = computeResultGame(chosenGames,chosenGame,allSites,bankroll,betNumber,logs,gameLogObject);
+
+				// updating the sites in DB
+				const updatePromisesAfterResultGame = allSites.map((site) => updateSite(site,iterNb,betNumber));
+				await Promise.all(updatePromisesAfterResultGame);
+
+				console.log('[Bet #%s] Les deux sites ont été mis à jour en base',betNumber);
+
+				console.log('####### NEXT GAME and ITERATION');
+
+				tempBegin = moment(chosenGame.date).add(2,'days');
+				tempEnd = moment(tempBegin).add(2+intervalOfDays,'days');
+				betNumber++;
+
+				return;
+					
+				
+			} catch (err){
+				console.log('CAUGHT ERROR WHILE EXECUTING',err);
+			}
+			
 		},
 		function whilefunction(){
 			return (tempEnd.isSameOrBefore(loopUntil) && !noMoreAvailableSites);
@@ -705,6 +599,20 @@ var simulateManyMembers = function(iterNb,callbackWhilstManyIterations){
 	);
 
 
+}
+
+async function updateSite(site,iterNb,betNumber){
+	var result = await OngoingSites.update({iterNb:iterNb,name:site.name},
+		{
+			solde:precisionRound(site.solde,2),
+			bonus_remaining:precisionRound(site.bonus_remaining,2),
+			bonus_status:site.bonus_status,
+			withdraw:precisionRound(site.withdraw,2),
+			site_status:site.site_status,
+			bonus_solde:precisionRound(site.bonus_solde,2)
+		}).exec();
+	
+	console.log('[Bet #%s] OngoingSites - updating sites - result:%s',betNumber,JSON.stringify(result));		
 }
 
 var computeResultGame = function(chosenGames,chosenGame,allSites,bankroll,betNumber,logs,gameLogObject){
@@ -1405,9 +1313,9 @@ var findBestSiteWithBonusTypeAndBestGame = function(sites,games,betNumber){
 	var chosenGameObj;
 
 	var bestSiteConditionsInOrder = [
-		{desc:'Bonus pas encore commencé et beaucoup de conditions',goal:'win',suggested_game_odd:1,// 2
+		{desc:'Bonus pas encore commencé et beaucoup de conditions',goal:'win',suggested_game_odd:1.7,// 2
 			bonus_type:null,bonus_status:'not yet',all_sites:false,min_bonus_min_odd:1,min_times:3},
-		{desc:'Pari Gratuit si perdant ou gagnant',goal:'win',suggested_game_odd:1.5, //1.5
+		{desc:'Pari Gratuit si perdant ou gagnant',goal:'win',suggested_game_odd:1.7, //1.5
 			bonus_type:'free_win_or_lose',bonus_status:'not yet',all_sites:false,min_bonus_min_odd:0,min_times:0},
 		{desc:'Pari Gratuit si perdant',goal:'win',suggested_game_odd:2, //2
 			bonus_type:'free_lose',bonus_status:'not yet',all_sites:false,min_bonus_min_odd:0,min_times:0},
@@ -1671,6 +1579,7 @@ var decideBets = function(chosenSite,otherSites,games,chosenGame,
 	});
 
 	allSites.forEach(function(site){
+		//console.log('[Bet #%s] Site %s - Détails:',betNumber,site.name,site);
 		site.chosenBets.forEach(function (chosenBet){
 			console.log('[Bet #%s] Site %s - Pari sur %s - Cote %s - Somme %s (%s)',
 				betNumber,site.name,printOddTypes(chosenGame,chosenBet.odd_type),chosenBet.odd,chosenBet.sum,(chosenBet.using_bonus_solde === true)? 'Bonus':'Solde normal');

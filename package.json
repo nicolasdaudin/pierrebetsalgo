@@ -12,6 +12,9 @@
   "scripts": {
     "start": "node server.js"
   },
+  "engines": {
+    "node": "10.4.1"
+  },
   "dependencies": {
     "async": "^2.6.0",
     "body-parser": "^1.14.1",

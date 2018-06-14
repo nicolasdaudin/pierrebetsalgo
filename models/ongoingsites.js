@@ -44,22 +44,22 @@ var createNewSites = function(iterNb){
   OngoingSites.insertMany([
     {name:'JOA',solde:0,deposit:0,deposit_pierre:75,withdraw:0,site_status:'not yet',order_pierre:1,iterNb:iterNb,
       commission_type:'CPA',commission_amount:45,commission_availability:false,
-      bonus_status:'not yet',bonus_type:'refund',bonus_limit:50,bonus_remaining:0,bonus_solde:0,bonus_percentage:100,first_bet_min_odd:0,bonus_min_odd:0,times:2}, // JOA on essaie de perdre le 1er pari?
+      bonus_status:'not yet',bonus_type:'refund',bonus_limit:50,bonus_remaining:0,bonus_solde:0,bonus_percentage:100,first_bet_min_odd:0,bonus_min_odd:0,times:2}, 
     {name:'Unibet',solde:0,deposit:0,deposit_pierre:100,withdraw:0,site_status:'not yet',order_pierre:2,iterNb:iterNb,
       commission_type:'CPA',commission_amount:50,commission_availability:true,
-      bonus_status:'not yet',bonus_type:'free_win_or_lose',bonus_limit:100,bonus_remaining:0,bonus_solde:0,bonus_percentage:100,first_bet_min_odd:1.40,bonus_min_odd:0,times:1}, // Unibet : Pierre essaie de gagner le 1er pari
+      bonus_status:'not yet',bonus_type:'free_win_or_lose',bonus_limit:100,bonus_remaining:0,bonus_solde:0,bonus_percentage:100,first_bet_min_odd:1.40,bonus_min_odd:0,times:1}, 
     {name:'France Pari',solde:0,deposit:0,deposit_pierre:100,withdraw:0,site_status:'not yet',order_pierre:3,iterNb:iterNb,
       commission_type:'CPA',commission_amount:25,commission_availability:true,
-      bonus_status:'not yet',bonus_type:'refund',bonus_limit:100,bonus_remaining:0,bonus_solde:0,bonus_percentage:100,first_bet_min_odd:0,bonus_min_odd:1.10,times:3}, // France-Pari : On essaie de perdre le 1er pari?
+      bonus_status:'not yet',bonus_type:'refund',bonus_limit:100,bonus_remaining:0,bonus_solde:0,bonus_percentage:100,first_bet_min_odd:0,bonus_min_odd:1.10,times:3}, 
     {name:'Netbet',solde:0,deposit:0,deposit_pierre:190,withdraw:0,site_status:'not yet',order_pierre:4,iterNb:iterNb,
       commission_type:'CPA',commission_amount:30,commission_availability:true,
-      bonus_status:'not yet',bonus_type:'refund',bonus_limit:190,bonus_remaining:0,bonus_solde:0,bonus_percentage:100,first_bet_min_odd:0,bonus_min_odd:2,times:6}, // Netbet: Pierre essaie de gagner le 1er pari - cote de 2
+      bonus_status:'not yet',bonus_type:'refund',bonus_limit:190,bonus_remaining:0,bonus_solde:0,bonus_percentage:100,first_bet_min_odd:0,bonus_min_odd:2,times:6}, 
     {name:'PMU',solde:0,deposit:0,deposit_pierre:100,withdraw:0,site_status:'not yet',order_pierre:7,iterNb:iterNb,
       commission_type:'CPA',commission_amount:40,commission_availability:true,
-      bonus_status:'not yet',bonus_type:'none',bonus_limit:100,bonus_remaining:0,bonus_solde:0,bonus_percentage:25,first_bet_min_odd:0,bonus_min_odd:0,times:0}, // PMU: on essaie de gagner le 1er pari?
+      bonus_status:'not yet',bonus_type:'none',bonus_limit:100,bonus_remaining:0,bonus_solde:0,bonus_percentage:25,first_bet_min_odd:0,bonus_min_odd:0,times:0}, 
     {name:'BWin',solde:0,deposit:0,deposit_pierre:100,withdraw:0,site_status:'not yet',order_pierre:8,iterNb:iterNb,
       commission_type:'RS',commission_amount:25,commission_availability:true,
-      bonus_status:'not yet',bonus_type:'free_lose',bonus_limit:107,bonus_remaining:0,bonus_solde:0,bonus_percentage:100,first_bet_min_odd:0,bonus_min_odd:0,times:1}, // BWin : on essaie de perdre le 1er pari? 
+      bonus_status:'not yet',bonus_type:'free_lose',bonus_limit:107,bonus_remaining:0,bonus_solde:0,bonus_percentage:100,first_bet_min_odd:0,bonus_min_odd:0,times:1}, 
     {name:'Parions Web',solde:0,deposit:0,deposit_pierre:100,withdraw:0,site_status:'not yet',order_pierre:6,iterNb:iterNb,
       commission_type:'CPA',commission_amount:40,commission_availability:true,
       bonus_status:'not yet',bonus_type:'refund',bonus_limit:100,bonus_remaining:0,bonus_solde:0,bonus_percentage:80,first_bet_min_odd:0,bonus_min_odd:0,times:0},
