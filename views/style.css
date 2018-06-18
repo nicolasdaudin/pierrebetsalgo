@@ -3,7 +3,7 @@ body {
 	font-family : Helvetica,Arial,sans-serif 
 }
 table {
-	border: 1px solid;    
+	/*border: 1px solid;    */
 }
 
 thead { 
@@ -18,7 +18,7 @@ tfoot {
 th, td { 
     padding: 5px 15px;
     text-align: left;
-    border-bottom: 1px solid #ddd;
+    /*border-bottom: 1px solid #ddd;*/
     font-weight : normal ;
     text-align:center;
 }
@@ -30,16 +30,38 @@ table.small th, table.small td {
     text-align:center;
 } 
 
-table.insidelogs th, table.insidelogs td { 
-    font-size:0.9em;
-   
-    font-weight : normal ;
-    text-align:center;
-} 
+
 table.small,table.insidelogs {
      padding-left: 30px;
      border:0;
 }
+
+table.insidelogs tbody tr td.rowname{
+    background-color:black;
+    color:white;
+} 
+
+table.insidelogs tbody tr td.gains{
+    background-color:grey;
+    color:black;
+} 
+
+table.insidelogs thead tr td { 
+    font-size:0.9em;
+    padding:5px;
+    color:white;
+    background-color:black;   
+   
+    font-weight : normal ;
+    text-align:center;
+} 
+
+table.insidelogs tbody tr td { 
+    font-size:0.8em;
+    padding:3px;   
+    font-weight : normal ;
+    text-align:center;
+} 
 
 
 table.sites thead, table.sites thead td { 
@@ -59,6 +81,8 @@ table.sites tbody tr td.sitename {
     background-color: #bfbfbf;
 }
 
+
+
 table.sites tbody tr.done {
     background-color:#c5f7c7;
 }
@@ -67,7 +91,6 @@ table.sites,table tbody.sites {
     border:0;
     padding-top:20px;
     padding-left:30px;
-    border:0;
     font-size:0.8em;
 }
 

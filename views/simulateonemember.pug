@@ -59,28 +59,67 @@ html
 				when "pari_tableau"
 					table(class='insidelogs')
 						thead
+							td
 							if log.gameLogObject[0]
-								td(class=`${log.gameLogObject[0].winclass}`) #{log.gameLogObject[0].who} à #{log.gameLogObject[0].odd}
+								td #{log.gameLogObject[0].who} 
 							if log.gameLogObject[1]
-								td #{log.gameLogObject[1].who} à #{log.gameLogObject[1].odd} 
+								td #{log.gameLogObject[1].who} 
 							if log.gameLogObject[2]
-								td #{log.gameLogObject[2].who} à #{log.gameLogObject[2].odd} 
+								td #{log.gameLogObject[2].who} 
 						tr
+							td(class='rowname') Site
 							if log.gameLogObject[0]
 								td 
-									span #{log.gameLogObject[0].site}
-									br
-									span #{log.gameLogObject[0].bet} € (#{log.gameLogObject[0].using_bonus_solde_text})
+									span #{log.gameLogObject[0].site} (#{log.gameLogObject[0].using_bonus_solde_text})
 							if log.gameLogObject[1]
 								td 
-									span #{log.gameLogObject[1].site}
-									br
-									span #{log.gameLogObject[1].bet} € (#{log.gameLogObject[1].using_bonus_solde_text})
+									span #{log.gameLogObject[1].site} (#{log.gameLogObject[1].using_bonus_solde_text})
 							if log.gameLogObject[2]
 								td 
-									span #{log.gameLogObject[2].site}
-									br
-									span #{log.gameLogObject[2].bet} € (#{log.gameLogObject[2].using_bonus_solde_text})
+									span #{log.gameLogObject[2].site} (#{log.gameLogObject[2].using_bonus_solde_text})
+						tr
+							td(class='rowname') Mise
+							if log.gameLogObject[0]
+								td 
+									span #{log.gameLogObject[0].bet} €
+							if log.gameLogObject[1]
+								td 
+									span #{log.gameLogObject[1].bet} € 
+							if log.gameLogObject[2]
+								td 
+									span #{log.gameLogObject[2].bet} € 
+							td(class='rowname') Payout
+						tr
+							td(class='rowname') Cote
+							if log.gameLogObject[0]
+								td #{log.gameLogObject[0].odd}
+							if log.gameLogObject[1]
+								td #{log.gameLogObject[1].odd} 
+							if log.gameLogObject[2]
+								td #{log.gameLogObject[2].odd} 
+							if log.gameLogObject[0]
+								td #{log.gameLogObject[0].payout} %
+							else if log.gameLogObject[1]
+								td #{log.gameLogObject[1].payout} %
+							else if log.gameLogObject[2]
+								td #{log.gameLogObject[2].payout} % 
+						tr
+							td(class='rowname') Gains
+							if log.gameLogObject[0]
+								td(class='gains') #{log.gameLogObject[0].gains} €
+							if log.gameLogObject[1] 
+								td(class='gains') #{log.gameLogObject[1].gains} €
+							if log.gameLogObject[2]
+								td(class='gains') #{log.gameLogObject[2].gains} €
+						tr
+							td(class='rowname') GAB
+							if log.gameLogObject[0]
+								td #{log.gameLogObject[0].gab}
+							if log.gameLogObject[1]
+								td #{log.gameLogObject[1].gab} 
+							if log.gameLogObject[2]
+								td #{log.gameLogObject[2].gab} 						
+
 				when "games"
 					span(class='log') Matchs Disponibles : <a href="#0" onclick="showHideGames(#{nb},#{log.betNumber});">Afficher/Cacher</a>
 					br

@@ -311,7 +311,7 @@ async function simulateManyMembers (iterNb,callbackWhilstManyIterations){
 						// Si on a deux sites, on regarde que ces deux sites ne sont pas tous les deux 'refund' sans avoir commencé le bonus
 						// car si c'est le cas, on ne peut pas séparer le premier pari car s'il est perdant, on veut récupérer un max
 						// tout cela à partir du second pari
-						var premierPariPerdantBonusTypes = ['free_lose','refund','free_win_or_lose'];
+						var premierPariPerdantBonusTypes = ['free_lose','refund','refund_partial_withdrawal','free_win_or_lose'];
 						var siteNames = [];
 						var nbOfSites = 0;
 						var siteBonusLimits = 0;
@@ -368,7 +368,7 @@ async function simulateManyMembers (iterNb,callbackWhilstManyIterations){
 								}
 							}
 						} else {
-							console.log('[Bet #%s] ######## PAS DE NOUVEAUX DEPOTS - Tous les sites ongoing ou just_started sont refund et le premier pari n\'a pas été fait. Mais pas assez de bankroll pour ajouter un 3ème site',betNumber);
+							console.log('[Bet #%s] ######## PAS DE NOUVEAUX DEPOTS - Tous les sites ongoing ou just_started sont de type Pari Remboursé/Gratuit et le premier pari n\'a pas été fait. Mais pas assez de bankroll pour ajouter un 3ème site',betNumber);
 							logs.push({type:'msg',msg:`Pas de nouveau dépôt. On a besoin d'un troisième site (les deux autres sites ${siteNames} ont des premiers paris remboursés) mais pas assez de bankroll`});
 									
 						}
@@ -390,7 +390,7 @@ async function simulateManyMembers (iterNb,callbackWhilstManyIterations){
 
 							} else {
 
-								console.log('[Bet #%s] ######## AJOUT d\'UN SITE - Tous les sites ongoing ou just_started sont refund et le premier pari n\'a pas été fait. On rajoute un troisième site',betNumber);
+								console.log('[Bet #%s] ######## AJOUT d\'UN SITE - Tous les sites ongoing ou just_started sont type Pari Remboursé/Gratuit et le premier pari n\'a pas été fait. On rajoute un troisième site',betNumber);
 								logs.push({type:'msg',msg:`On a besoin d'un troisième site (les deux autres sites ${siteNames} ont des premiers paris remboursés)`});
 								thirdsite = thirdsites[0];
 							}														
@@ -662,6 +662,8 @@ var computeResultGame = function(chosenGames,chosenGame,allSites,bankroll,betNum
 	// END LOGGING
 
 	allSites.forEach(function (site){
+
+		// CALCUL DES NOUVEAUX SOLDES (NORMAL ET BONUS ET REMAINING)
 		site.chosenBets.forEach(function (chosenBet){
 
 			if (chosenBet.sum > 0 && site.site_status === 'just_started'){
@@ -695,8 +697,8 @@ var computeResultGame = function(chosenGames,chosenGame,allSites,bankroll,betNum
 					site.bonus_solde = precisionRound(Math.min(site.bonus_limit,chosenBet.sum),2);
 					site.bonus_status = 'ongoing';
 				} else if (site.bonus_status === 'not yet' && 
-					( site.bonus_type === 'refund' || site.bonus_type === 'free_lose' || site.bonus_type === 'none')){	
-					// si c'est un site avec 'refund', 'free_lose', 'none' et que le bonus n'était pas encore en usage (premier pari)
+					['refund','refund_partial_withdrawal','free_lose','none'].includes(site.bonus_type) ) {
+					// si c'est un site avec 'refund', 'refund_partial_withdrawal', free_lose', 'none' et que le bonus n'était pas encore en usage (premier pari)
 					// on met à jour le bonus à 'done' car on ne pourra pas l'utiliser 
 																
 					site.bonus_status = 'done';
@@ -722,7 +724,7 @@ var computeResultGame = function(chosenGames,chosenGame,allSites,bankroll,betNum
 
 				// si le bonus du site est pas encore utilisé, on peut l'activer.																			
 				if (site.bonus_status === 'not yet'){
-					if (site.bonus_type === 'free_win_or_lose' || site.bonus_type === 'refund' || site.bonus_type === 'free_lose'){
+					if (['free_win_or_lose','refund','refund_partial_withdrawal','free_lose'].includes(site.bonus_type)){						
 						// on initialise les bonus
 						site.bonus_remaining = precisionRound(Math.min(site.bonus_limit,chosenBet.sum) * site.times,2);
 						site.bonus_solde = precisionRound(Math.min(site.bonus_limit,chosenBet.sum),2);
@@ -731,7 +733,7 @@ var computeResultGame = function(chosenGames,chosenGame,allSites,bankroll,betNum
 
 				// si le bonus du site est ongoing
 				} else if (site.bonus_status === 'ongoing'){
-					if (site.bonus_type === 'free_win_or_lose' || site.bonus_type === 'refund' || site.bonus_type === 'free_lose'){
+					if (['free_win_or_lose','refund','refund_partial_withdrawal','free_lose'].includes(site.bonus_type)){
 						// on met à jour les bonus (le solde et le restant à valider)
 						site.bonus_remaining = precisionRound(Math.max(site.bonus_remaining - chosenBet.sum,0),2);						
 					}
@@ -764,6 +766,7 @@ var computeResultGame = function(chosenGames,chosenGame,allSites,bankroll,betNum
 			logs.push({type:'retrait',msg:`${site.name} - Plus d'argent à parier. On passe au site suivant`});
 		}
 
+		// RETRAIT, LE CAS ECHEANT 
 
 		if ( (site.bonus_status === 'ongoing' && site.bonus_remaining === 0 && (site.solde > 0 || site.bonus_solde > 0))
 			|| (site.bonus_status === 'done' && (site.solde > 0 || site.bonus_solde > 0))) {
@@ -795,6 +798,27 @@ var computeResultGame = function(chosenGames,chosenGame,allSites,bankroll,betNum
 			console.log("Site %s - Retrait de %s du solde principal, il ne reste plus que le bonus.",site.name,withdraw);
 			logs.push({type:'retrait',msg:`${site.name} - Retrait ${withdraw.toFixed(2)} - On retire le solde principal, on conserve le bonus`});
 		} 
+
+		if (site.bonus_type === 'refund_partial_withdrawal' && site.bonus_status === 'ongoing'
+				&& (site.solde > site.partial_withdrawal_min || site.bonus_solde > site.partial_withdrawal_min) ){
+				
+			// site de type 'refund_partial_withdrawal' (ex: France Pari)
+			// on peut retirer le solde dispo (normal ou bonus) si celui-ci est supérieur au minimum retirable
+			// dans ce cas on retire le minimum pour laisser sur le site (ça peut servir)
+
+			var withdraw = site.partial_withdrawal_min;
+			if (site.solde >= site.partial_withdrawal_min){
+				site.solde = site.solde - site.partial_withdrawal_min;
+			} 
+			if (site.bonus_solde >= site.partial_withdrawal_min) {
+				site.bonus_solde = site.bonus_solde - site.partial_withdrawal_min;
+			}
+			bankroll = precisionRound(bankroll+withdraw,2);
+			site.withdraw = precisionRound(site.withdraw + withdraw,2);
+
+			console.log("Site %s - Retrait PARTIEL de % du solde normal ou bonus",site.name,withdraw);
+			logs.push({type:'retrait',msg:`${site.name} - Retrait ${withdraw.toFixed(2)} - On retire partiellement, on conserve le reste`});
+		}
 
 
 		console.log("[Bet #%s] %s",betNumber,printSiteStatus(site));
@@ -1313,12 +1337,20 @@ var findBestSiteWithBonusTypeAndBestGame = function(sites,games,betNumber){
 	var chosenGameObj;
 
 	var bestSiteConditionsInOrder = [
-		{desc:'Bonus pas encore commencé et beaucoup de conditions',goal:'win',suggested_game_odd:1.7,// 2
+		{desc:'Bonus pas encore commencé et beaucoup de conditions (Pari Remboursé Partiel)',goal:'win',suggested_game_odd:2.7,// 2
+			bonus_type:'refund_partial_withdrawal',bonus_status:'not yet',all_sites:false,min_bonus_min_odd:1,min_times:3},
+		{desc:'Bonus pas encore commencé et beaucoup de conditions (Pari Remboursé non Partiel)',goal:'win',suggested_game_odd:1.6,// 2
+			bonus_type:'refund',bonus_status:'not yet',all_sites:false,min_bonus_min_odd:1,min_times:3},
+		{desc:'Bonus pas encore commencé et beaucoup de conditions (Autre que Pari Remboursé)',goal:'win',suggested_game_odd:1.7,// 2
 			bonus_type:null,bonus_status:'not yet',all_sites:false,min_bonus_min_odd:1,min_times:3},
 		{desc:'Pari Gratuit si perdant ou gagnant',goal:'win',suggested_game_odd:1.7, //1.5
 			bonus_type:'free_win_or_lose',bonus_status:'not yet',all_sites:false,min_bonus_min_odd:0,min_times:0},
 		{desc:'Pari Gratuit si perdant',goal:'win',suggested_game_odd:2, //2
 			bonus_type:'free_lose',bonus_status:'not yet',all_sites:false,min_bonus_min_odd:0,min_times:0},
+		{desc:'Pari Remboursé (Retrait Partiel) en cours sur tous les sites, avec conditions',goal:'win',suggested_game_odd:2, //2
+			bonus_type:'refund_partial_withdrawal',bonus_status:'ongoing',all_sites:true,min_bonus_min_odd:1,min_times:1},
+		{desc:'Pari Remboursé (Retrait Partiel) en cours avec conditions',goal:'lose',suggested_game_odd:3.5, //3.5
+			bonus_type:'refund_partial_withdrawal',bonus_status:'ongoing',all_sites:false,min_bonus_min_odd:1,min_times:1},
 		{desc:'Pari Remboursé en cours sur tous les sites, avec conditions',goal:'win',suggested_game_odd:2, //2
 			bonus_type:'refund',bonus_status:'ongoing',all_sites:true,min_bonus_min_odd:1,min_times:1},
 		{desc:'Pari Remboursé en cours avec conditions',goal:'lose',suggested_game_odd:3.5, //3.5
@@ -1596,17 +1628,64 @@ var decideBets = function(chosenSite,otherSites,games,chosenGame,
 				gameLogObject[3] = true;
 			}
 
+			var gains = chosenBet.odd * chosenBet.sum - chosenBet.sum;
+
 
 			gameLogObject[indexlog] = {
 				site : site.name, 
+				bonus_type: site.bonus_type,
+				using_bonus_solde : chosenBet.using_bonus_solde,
+				site_status : site.site_status,
 				odd:chosenBet.odd, 
 				who:printOddTypes(chosenGame,chosenBet.odd_type), 
 				bet:chosenBet.sum.toFixed(2),
+				gains:gains.toFixed(2),
 				using_bonus_solde_text : ((chosenBet.using_bonus_solde === true)? 'Bonus':'Solde normal'),
 				winclass:''
 			};
 		});
 	});
+
+
+	// calculating GAB
+	var payout = 0;
+	for (var i = 0; i <=2;i++){
+		if (gameLogObject[i]){
+			var baseObj = gameLogObject[i];
+			var gab = baseObj.gains;
+			// cas où c'est un pari gratuit + on joue le bonus : on enlève la mise initiale car on la perd
+			if (['free_win_or_lose','free_lose'].includes(baseObj.bonus_type) && baseObj.using_bonus_solde){
+				gab = gab - baseObj.bet;
+			}
+
+			// on browse les autres paris
+			for (var j = 0; j <= 2; j++){
+				if (i != j && gameLogObject[j]){
+					// les autres !!! 
+
+					// on perd le montant de la mise de ce site
+					// SAUF si c'est un bonus remboursé, et qu'on est en train en mode just_started (premier pari remboursé)
+					var otherObj = gameLogObject[j];
+					if (!(['refund','refund_partial_withdrawal'].includes(otherObj.bonus_type) && ['just_started'].includes(otherObj.site_status))) {
+						gab = gab - otherObj.bet;
+					}
+				}
+			}
+
+			baseObj.gab = precisionRound(gab,2);
+
+			payout += 1 / baseObj.odd;
+
+		}
+	}
+	// update payout
+	for (var i = 0; i <=2;i++){
+		if (gameLogObject[i]){
+			gameLogObject[i].payout = precisionRound(payout*100,0);
+		}
+	}
+
+
 
 }
 
