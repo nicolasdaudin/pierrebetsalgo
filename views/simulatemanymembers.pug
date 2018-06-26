@@ -36,20 +36,18 @@ html
 					td 
 						a(href='#iter' + iter.iterNb) Détail itération #{iter.iterNb}
 		br
-
-		
-		
-		each iter in result
-			- var nb = iter.iterNb
-			- var games = iter.games
-			- var elapsed = iter.elapsed
-			- var init_bankroll = iter.init_bankroll
-			- var final_bankroll = iter.final_bankroll
-			- var final_betNumber = iter.final_betNumber
-			- var frais = iter.frais
-			- var gains_finaux = iter.gains_finaux
-			- var logs = iter.logs
-				include simulateonemember.pug
+		//
+			each iter in result
+				- var nb = iter.iterNb
+				- var games = iter.games
+				- var elapsed = iter.elapsed
+				- var init_bankroll = iter.init_bankroll
+				- var final_bankroll = iter.final_bankroll
+				- var final_betNumber = iter.final_betNumber
+				- var frais = iter.frais
+				- var gains_finaux = iter.gains_finaux
+				- var logs = iter.logs
+					include simulateonemember.pug
 				
 
 		a(href='https://icons8.com') Icon pack by Icons8

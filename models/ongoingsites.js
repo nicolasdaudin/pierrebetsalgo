@@ -41,8 +41,8 @@ var resetOngoingSites = function(){
   });
 }
 
-var createNewSites = function(iterNb){
-  OngoingSites.insertMany([
+async function createNewSites(iterNb){
+  var result = await OngoingSites.insertMany([
     {name:'JOA',solde:0,deposit:0,deposit_pierre:75,withdraw:0,site_status:'not yet',order_pierre:1,iterNb:iterNb,
       commission_type:'CPA',commission_amount:45,commission_availability:false,
       bonus_status:'not yet',bonus_type:'refund_partial_withdrawal',partial_withdrawal_min:50,bonus_limit:50,bonus_remaining:0,bonus_solde:0,bonus_percentage:100,first_bet_min_odd:0,bonus_min_odd:0,times:2}, 
@@ -78,11 +78,9 @@ var createNewSites = function(iterNb){
       bonus_status:'not yet',bonus_type:'free_lose',bonus_limit:50,bonus_remaining:0,bonus_solde:0,bonus_percentage:100,first_bet_min_odd:0,bonus_min_odd:0,times:0}
       
     ]
-    ,{'ordered':false},function(err,result){
-      console.log('OngoingSites - insertMany - err:%s - result:%s',err,result.length);
-    }
-  );
-
+    ,{'ordered':false} 
+    );
+  console.log('OngoingSites - insertMany - result:%s',result.length);  
 };
 
 var findSites = function(iterationNb,site_status,sites_not_allowed,nb_of_sites){
