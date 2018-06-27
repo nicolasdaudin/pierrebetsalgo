@@ -34,11 +34,11 @@ html
 						td(style={color: 'red'}) #{iter.gains_finaux}					
 					td #{iter.final_betNumber}
 					td 
-						a(href='#iter' + iter.iterNb) Détail itération #{iter.iterNb}
+						a(href='/logs/' + iter.iterNb target='_blank') Détail itération #{iter.iterNb}
 		br
-		//
+		// below not necessary anymore since we use the detail page
 			each iter in result
-				- var nb = iter.iterNb
+				- var iterNb = iter.iterNb
 				- var games = iter.games
 				- var elapsed = iter.elapsed
 				- var init_bankroll = iter.init_bankroll

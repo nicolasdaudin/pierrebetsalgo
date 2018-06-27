@@ -13,7 +13,7 @@ html
 		script(src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js')
 		script(src='../js/simulate.js')
 	body
-		h2(id='iter'+ nb) Iteration no #{nb} - Matchs (cotes de Pinnacle)
+		h2(id='iter'+ iterNb) Iteration no #{iterNb} - Matchs (cotes de Pinnacle)
 		table(class='small')
 			thead
 				td Date
@@ -34,7 +34,7 @@ html
 							td Match nul
 						when "A"
 							td #{game.away_team}
-		h2 Iteration no #{nb} - Résultats finaux
+		h2 Iteration no #{iterNb} - Résultats finaux
 		.
 			Capital initial #{init_bankroll} € - Capital final #{final_bankroll} € 
 		br
@@ -48,7 +48,7 @@ html
 		br
 		.
 			Temps passé sur cette simulation : #{elapsed} milliseconds
-		h2 Iteration no #{nb} - Détails
+		h2 Iteration no #{iterNb} - Détails
 		each log,position in logs		
 			
 			case log.type
@@ -121,9 +121,9 @@ html
 								td #{log.gameLogObject[2].gab} 						
 
 				when "games"
-					span(class='log') Matchs Disponibles : <a href="#0" onclick="showHideGames(#{nb},#{log.betNumber});">Afficher/Cacher</a>
+					span(class='log') Matchs Disponibles : <a href="#0" onclick="showHideGames(#{iterNb},#{log.betNumber});">Afficher/Cacher</a>
 					br
-					div(class=`games_log games_${nb}_${log.betNumber}`)
+					div(class=`games_log games_${iterNb}_${log.betNumber}`)
 						table(class='small')
 							thead
 								td Date
@@ -190,7 +190,7 @@ html
 			br
 		br
 		br
-		a(href='#iter' + nb) Retourner en haut de cette itération
+		a(href='#iter' + iterNb) Retourner en haut de cette itération
 		br
 		a(href='#begin') Retourner TOUT en haut de cette simulation
 		br
