@@ -62,10 +62,11 @@ app.get('/simulateonemember',async function(req,res){
 
 	//db.histories.find({},{iterNb:1}).sort({iterNb:-1}).limit(1)
 	// { "_id" : ObjectId("5b33701c427e0709e8bd38b6"), "iterNb" : 1513 }
-	var historyWithHighestIterNb = await History.find({},{iterNb:1},{sort:{iterNb:-1},limit:1}).exec();
-	var nextIterNb = historyWithHighestIterNb[0].iterNb + 1;
-	console.log('historyWithHighestIterNb',historyWithHighestIterNb);
-	console.log('nextIterNb',nextIterNb);
+	var nextIterNb = await getNextIterNb();
+	
+
+	//console.log('historyWithHighestIterNb',historyWithHighestIterNb);
+	//console.log('nextIterNb',nextIterNb);
 
 
 	simulateManyMembers(nextIterNb,function(err,result){
@@ -101,10 +102,9 @@ app.get('/simulateonemember/:stopAt',async function(req,res){
 
 	//var iterNb = 1;
 
-	var historyWithHighestIterNb = await History.find({},{iterNb:1},{sort:{iterNb:-1},limit:1}).exec();
-	var iterNb = historyWithHighestIterNb[0].iterNb + 1;
-	console.log('historyWithHighestIterNb',historyWithHighestIterNb);
-	console.log('nextIterNb',iterNb);
+	var iterNb = await getNextIterNb();
+
+	
 
 	var shouldContinue = true;
 
@@ -184,6 +184,16 @@ app.get('/simulateonemember/:stopAt',async function(req,res){
 
 });
 
+async function getNextIterNb(){
+	var iterNb = 1;
+	var historyWithHighestIterNb = await History.find({},{iterNb:1},{sort:{iterNb:-1},limit:1}).exec();
+	if (historyWithHighestIterNb && historyWithHighestIterNb.length > 0){
+		iterNb = historyWithHighestIterNb[0].iterNb + 1;
+	}
+	return iterNb;
+
+}
+
 async function simulateManyMembersWrapper(iterNb){
 	console.log('[Iter #%s] simulateManyMembersWrapper - before simulateManyMembers',iterNb);	
 	return new Promise(resolve => {
@@ -211,10 +221,7 @@ app.get('/simulatemanymembers/:nb',async function(req,res){
 	resetOngoingSites();
 
 
-	var historyWithHighestIterNb = await History.find({},{iterNb:1},{sort:{iterNb:-1},limit:1}).exec();
-	var nextIterNb = Number(historyWithHighestIterNb[0].iterNb + 1);
-	console.log('historyWithHighestIterNb',historyWithHighestIterNb);
-	console.log('nextIterNb',nextIterNb);
+	var nextIterNb = await getNextIterNb();
 
 	// d'abord on va faire un async.waterfall ou async.each, les simulations doivent se suivre (sinon les database vont s'écraser et ça n'aura aucun sens)
 	// ensuite il faudra faire un async.parallel, mais il faudra inclure dans le ongoingsites le numéro de l'iteration
