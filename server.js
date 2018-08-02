@@ -114,7 +114,7 @@ app.get('/simulateonemember/:stopAt',async function(req,res){
 
 	async.doWhilst(
 		async function dofunction(callbackDo){
-			console.log('[Iter #%s] do function - before result',iterNb);	
+			//console.log('[Iter #%s] do function - before result',iterNb);	
 			// TODO cette fonction retourne tout de suite, ça marche pas... 
 			// peut-être un wrapper qui retourne une promesse ?
 
@@ -138,9 +138,9 @@ app.get('/simulateonemember/:stopAt',async function(req,res){
 
 			});*/
 			result = await simulateManyMembersWrapper(iterNb);
-			console.log('[Iter #%s] do function - after result',iterNb);	
+			//console.log('[Iter #%s] do function - after result',iterNb);	
 			
-			console.log('[Iter #%s] gains_finaux=%s stopAt=%s',iterNb,result.gains_finaux,stopAt);
+			//console.log('[Iter #%s] gains_finaux=%s stopAt=%s',iterNb,result.gains_finaux,stopAt);
 			if (result.gains_finaux <= stopAt ) {
 				//console.log('$%$&$& FINAL RESULT simulateonemember',result);
 				shouldContinue = false;	
@@ -151,18 +151,18 @@ app.get('/simulateonemember/:stopAt',async function(req,res){
 
 			} else {					
 				iterNb ++;
-				console.log('[Iter #%s] Going to next iteration',iterNb);
+				//console.log('[Iter #%s] Going to next iteration',iterNb);
 				//callbackDo(null,null);
 			}
 
 				
 		},
 		async function whilefunction(){
-			console.log('[Iter #%s] while function : shouldcontinue = ',iterNb,shouldContinue);	
+			//console.log('[Iter #%s] while function : shouldcontinue = ',iterNb,shouldContinue);	
 			return shouldContinue;
 		},
 		async function afterfunction(){
-			console.log('[Iter #%s] after function - result is : ',iterNb);			
+			//console.log('[Iter #%s] after function - result is : ',iterNb);			
 
 			var processEnd = moment();    		
 	    	var elapsed = processEnd.diff(processBegin,'SSS');	    	
@@ -195,10 +195,10 @@ async function getNextIterNb(){
 }
 
 async function simulateManyMembersWrapper(iterNb){
-	console.log('[Iter #%s] simulateManyMembersWrapper - before simulateManyMembers',iterNb);	
+	//console.log('[Iter #%s] simulateManyMembersWrapper - before simulateManyMembers',iterNb);	
 	return new Promise(resolve => {
     	simulateManyMembers(iterNb,  function(err,result){
-			console.log('[Iter #%s] simulateManyMembersWrapper - back from simulateManyMembers',iterNb);	
+			//console.log('[Iter #%s] simulateManyMembersWrapper - back from simulateManyMembers',iterNb);	
 			resolve(result);
 		});
  	 });
@@ -208,7 +208,7 @@ async function simulateManyMembersWrapper(iterNb){
   });*/
  // it voir https://stackoverflow.com/questions/37104199/how-to-await-for-a-callback-to-return
 
-	console.log('[Iter #%s] simulateManyMembersWrapper - after simulateManyMembers',iterNb);	
+	//console.log('[Iter #%s] simulateManyMembersWrapper - after simulateManyMembers',iterNb);	
 }
 
 app.get('/simulatemanymembers/:nb',async function(req,res){
@@ -258,6 +258,18 @@ app.get('/simulatemanymembers/:nb',async function(req,res){
 			var avg_gains_finaux = total_gains_finaux/resultIter.length;
 			var min_gains_finaux = resultIter.reduce( (min,iter) => Math.min(min,iter.gains_finaux),1000);
 
+			var nb_below_0 = resultIter.reduce( (count,iter) => {if (iter.gains_finaux < 0) { return count + 1;} else return count;},0);
+			var percent_below_0 = nb_below_0 / nbIterations * 100;
+			var nb_below_100 = resultIter.reduce( (count,iter) => {if (iter.gains_finaux < 100) { return count + 1;} else return count;},0);
+			var percent_below_100 = nb_below_100 / nbIterations * 100;
+			var nb_below_200 = resultIter.reduce( (count,iter) => {if (iter.gains_finaux < 200) { return count + 1;} else return count;},0);
+			var percent_below_200 = nb_below_200 / nbIterations * 100;
+			var nb_below_300 = resultIter.reduce( (count,iter) => {if (iter.gains_finaux < 300) { return count + 1;} else return count;},0);
+			var percent_below_300 = nb_below_300 / nbIterations * 100;
+			var nb_below_350 = resultIter.reduce( (count,iter) => {if (iter.gains_finaux < 350) { return count + 1;} else return count;},0);
+			var percent_below_350 = nb_below_350 / nbIterations * 100;
+
+
 			resultIter.sort(function compare(a, b) {
 			  if (Number(a.gains_finaux) < Number(b.gains_finaux))
 			     return -1;
@@ -272,6 +284,9 @@ app.get('/simulatemanymembers/:nb',async function(req,res){
 			console.log('TOTAL GAINS FINAUX',total_gains_finaux);
 			console.log('AVERAGE GAINS FINAUX',avg_gains_finaux);
 			console.log('MINIMUM GAINS FINAUX',min_gains_finaux);
+			console.log('NB SOUS 0',nb_below_0);
+			console.log('NB SOUS 100',nb_below_100);
+			console.log('NB SOUS 200',nb_below_200);
 
 
 			res.render('simulatemanymembers',{
@@ -280,7 +295,18 @@ app.get('/simulatemanymembers/:nb',async function(req,res){
 				nb:nbIterations,
 				max:max_gains_finaux,
 				average:avg_gains_finaux,
-				min:min_gains_finaux
+				min:min_gains_finaux,
+				nb_below_0:nb_below_0,
+				percent_below_0:percent_below_0.toFixed(2),
+				nb_below_100:nb_below_100,
+				percent_below_100:percent_below_100.toFixed(2),
+				nb_below_200:nb_below_200,
+				percent_below_200:percent_below_200.toFixed(2),
+				nb_below_300:nb_below_300,
+				percent_below_300:percent_below_300.toFixed(2),
+				nb_below_350:nb_below_350,
+				percent_below_350:percent_below_350.toFixed(2),
+				
 			});
 		}
 	);
@@ -352,18 +378,18 @@ async function simulateManyMembers (iterNb,callbackWhilstManyIterations){
 
 				//await depositNewSites(addedSites,bankroll,logs,iterNb,betNumber);
 
-				console.log('[Iter %s][Bet #%s] before all depositNewSites (%s sites to be added)',iterNb,betNumber,addedSites.length);
+				//console.log('[Iter %s][Bet #%s] before all depositNewSites (%s sites to be added)',iterNb,betNumber,addedSites.length);
 				if (addedSites && addedSites.length > 0){
 					for (const site of addedSites){							
 						if (site){
 							bankroll = await depositNewSite(site,bankroll,logs,iterNb,betNumber);
-							console.log('[Iter %s][Bet #%s] after depositNewSite pour site %s',iterNb,betNumber,site.name);
+							//console.log('[Iter %s][Bet #%s] after depositNewSite pour site %s',iterNb,betNumber,site.name);
 						}
 					}
 				}
-				console.log('[Iter %s][Bet #%s] after all depositNewSites (%s sites to be added)',iterNb,betNumber,addedSites.length);
+				//console.log('[Iter %s][Bet #%s] after all depositNewSites (%s sites to be added)',iterNb,betNumber,addedSites.length);
 
-				console.log('[Bet #%s] begin decideGame',betNumber);
+				//console.log('[Bet #%s] begin decideGame',betNumber);
 					
 				var startedSites = await OngoingSites.find({iterNb:iterNb,site_status:{$in:['ongoing','just_started','done']}},{},{sort:{order_pierre:1}}).exec();
 				logs.push({type:'sites',info: { sites:startedSites, bankroll: bankroll}});
@@ -395,7 +421,7 @@ async function simulateManyMembers (iterNb,callbackWhilstManyIterations){
 				var chosenGame = games[indexChosenGame];
 				var gameLogObject = [];
 
-				console.log('[Bet #%s] begin decideBetsWrapper',betNumber);
+				//console.log('[Bet #%s] begin decideBetsWrapper',betNumber);
 				decideBets(chosenSite,otherSites,games,chosenGame,chosenOddTypes,logs,
 					logBonusType, gameLogObject,betNumber)
 
@@ -406,14 +432,14 @@ async function simulateManyMembers (iterNb,callbackWhilstManyIterations){
 				});
 				
 				// updating the sites in DB
-				console.log('[Bet #%s] before updatePromisesBeforeResultGame',betNumber);
+				//console.log('[Bet #%s] before updatePromisesBeforeResultGame',betNumber);
 				const updatePromisesBeforeResultGame = allSites.map((site) => updateSite(site,iterNb,betNumber));
 				await Promise.all(updatePromisesBeforeResultGame);
 
 				
-				console.log('[Bet #%s] after updatePromisesBeforeResultGame',betNumber);
+				//console.log('[Bet #%s] after updatePromisesBeforeResultGame',betNumber);
 				
-				console.log('[Bet #%s] begin resultGame',betNumber);
+				//console.log('[Bet #%s] begin resultGame',betNumber);
 
 				var remainingNotYetSites = await OngoingSites.find({iterNb:iterNb,site_status:'not yet'},{}).exec();
 
@@ -423,7 +449,7 @@ async function simulateManyMembers (iterNb,callbackWhilstManyIterations){
 				const updatePromisesAfterResultGame = allSites.map((site) => updateSite(site,iterNb,betNumber));
 				await Promise.all(updatePromisesAfterResultGame);
 
-				console.log('[Bet #%s] Les deux sites ont été mis à jour en base',betNumber);
+				//console.log('[Bet #%s] Les deux sites ont été mis à jour en base',betNumber);
 				
 
 				console.log('####### NEXT GAME and ITERATION');
@@ -500,7 +526,7 @@ async function simulateManyMembers (iterNb,callbackWhilstManyIterations){
 * 	false otherwise
 */
 async function areSitesAvailable(logs,iterNb,betNumber){
-	console.log('[Bet #%s] begin areSitesAvailable',betNumber);
+	//console.log('[Bet #%s] begin areSitesAvailable',betNumber);
 
 
 	var availableSites = await OngoingSites.find({iterNb:iterNb,site_status:{$in:['not yet','ongoing']}}).exec();	
@@ -516,7 +542,7 @@ async function areSitesAvailable(logs,iterNb,betNumber){
 }
 
 async function decideNextSites(bankroll,logs,iterNb,betNumber){
-	console.log('[Bet #%s] begin decideNextSites',betNumber);
+	//console.log('[Bet #%s] begin decideNextSites',betNumber);
 	// ######## DECIDER DES SITES SUR LESQUELS ON PARIE - SI BESOIN, EN OUVRIR UN NOUVEAU
 	// VOIR LES SITES AVAILABLE
 	var ongoingsites = await OngoingSites.find({iterNb:iterNb,site_status:'ongoing'}).exec();
@@ -681,7 +707,7 @@ async function decideNextSites(bankroll,logs,iterNb,betNumber){
 					//callbackChooseBetweenTwoSites(null,{chosenSiteNb,otherSiteNb});
 
 				}
-				console.log('afterChoosingBetweenTwoSites');
+				//console.log('afterChoosingBetweenTwoSites');
 
 				//var chosenSiteNb = result.chosenSiteNb;
 				//var otherSiteNb = result.otherSiteNb;
@@ -776,7 +802,7 @@ async function decideNextSites(bankroll,logs,iterNb,betNumber){
 				} 
 
 				
-				console.log('afterAllOfThem');
+				//console.log('afterAllOfThem');
 				addedSites.push(notyetsites[chosenSiteNb]);
 				addedSites.push(notyetsites[otherSiteNb]);
 				//var sitesNb = [chosenSiteNb,otherSiteNb];
@@ -903,7 +929,7 @@ async function updateSite(site,iterNb,betNumber){
 			bonus_solde:precisionRound(site.bonus_solde,2)
 		}).exec();
 	
-	console.log('[Bet #%s] OngoingSites - updating sites - result:%s',betNumber,JSON.stringify(result));		
+	//console.log('[Bet #%s] OngoingSites - updating sites - result:%s',betNumber,JSON.stringify(result));		
 }
 
 
@@ -940,7 +966,7 @@ var computeResultGame = function(chosenGames,chosenGame,allSites,remainingNotYet
 				indexlog = 2;
 			}
 		}
-		console.log('winningOdds',winningOdds);
+		//console.log('winningOdds',winningOdds);
 		//console.log('indexlog',indexlog);
 		//console.log('gameLogObject',gameLogObject);
 		gameLogObject[indexlog].winclass = 'win';
@@ -954,6 +980,8 @@ var computeResultGame = function(chosenGames,chosenGame,allSites,remainingNotYet
 
 		allSites.forEach(function (site){
 
+			console.log("[Bet #%s] Site %s - AVANT CALCUL GAME - Solde = ",betNumber,site.name,site.solde);
+
 			// CALCUL DES NOUVEAUX SOLDES (NORMAL ET BONUS ET REMAINING)
 			site.chosenBets.forEach(function (chosenBet){
 
@@ -965,7 +993,7 @@ var computeResultGame = function(chosenGames,chosenGame,allSites,remainingNotYet
 				
 				if (winningOdds.includes(chosenBet.odd_type)){
 					// pari gagnant
-					console.log('[Bet #%s] bonus_status %s bonus_type %s',betNumber,site.bonus_status,site.bonus_type);
+					//console.log('[Bet #%s] bonus_status %s bonus_type %s',betNumber,site.bonus_status,site.bonus_type);
 
 					if (site.bonus_status === 'ongoing' && ['free_lose','free_win_or_lose'].includes(site.bonus_type)) {
 						// pari gratuit, on rajoute au solde QUE la différence entre le gain et la mise 
@@ -1056,6 +1084,8 @@ var computeResultGame = function(chosenGames,chosenGame,allSites,remainingNotYet
 				console.log("[Bet #%s] Site %s - Plus d'argent. On passe au site suivant.",betNumber,site.name);
 				logs.push({type:'retrait',msg:`${site.name} - Plus d'argent à parier. On passe au site suivant`});
 			}
+
+			console.log("[Bet #%s] Site %s - APRES CALCUL GAME - Solde = ",betNumber,site.name,site.solde);
 		});
 
 		// RETRAIT, LE CAS ECHEANT 
@@ -1361,8 +1391,8 @@ var findBestGame = function(games, chosenSite, otherSites,suggested_odd, mode,do
 		
 
 		var doubleChanceOdds = ['home_draw_odd','home_away_odd','away_draw_odd'];
-		console.log('[Bet #%s] findBestGame min_odd=%s safeMinOdd=%s mode=%s',betNumber,suggested_odd,safeSuggestedOdd,mode);
-		printGames(games,betNumber);
+		//console.log('[Bet #%s] findBestGame min_odd=%s safeMinOdd=%s mode=%s',betNumber,suggested_odd,safeSuggestedOdd,mode);
+		//printGames(games,betNumber);
 
 		if (mode === 'equal' || mode === 'lose'){
 			// case 'equal' ou 'lose'
@@ -1619,11 +1649,11 @@ var getOtherSites = function(sites,foundIndex){
    	min_times: le nombre de fois minimum à parier le bonus (le site doit remplir l'une des deux conditions)
 
 */
-var findSitesWithConditions = function (sites,goal,bonus_type,bonus_status,all_sites,min_bonus_min_odd,min_times,betNumber){
+var findSitesWithConditions = function (sites,desc,goal,bonus_type,bonus_status,all_sites,min_bonus_min_odd,min_times,betNumber){
 	try {
 		var bestSitesNb = [];
 		var bestSitesNames = [];
-		console.log('[Bet #%s] findSitesWithConditions - looking between %s sites',betNumber,sites.length);
+		//console.log('[Bet #%s] findSitesWithConditions - looking between %s sites',betNumber,sites.length);
 
 		for (var i = 0; i < sites.length; i++){
 			var site = sites[i];
@@ -1636,13 +1666,15 @@ var findSitesWithConditions = function (sites,goal,bonus_type,bonus_status,all_s
 		}
 
 
-		console.log('[Bet #%s] findSitesWithConditions - site  respecting the conditions: ',betNumber,bestSitesNames);
+		if (bestSitesNames.length > 0){
+			console.log('[Bet #%s] Condition %s - sites respecting the conditions: ',betNumber,desc,bestSitesNames);
+		}
 
 		if (all_sites && bestSitesNb.length !==sites.length) {
 			// tous les sites doivent remplir ces conditions
 			// mais il n'y a pas tous les sites
 			// on renvoit donc aucun site
-			console.log('[Bet #%s] findSitesWithConditions - Aucun site renvoyé car tous les sites doivent remplir les conditions',betNumber);
+			//console.log('[Bet #%s] findSitesWithConditions - Aucun site renvoyé car tous les sites doivent remplir les conditions',betNumber);
 			return -1;
 		}
 
@@ -1655,11 +1687,11 @@ var findSitesWithConditions = function (sites,goal,bonus_type,bonus_status,all_s
 
 		if (bestSitesNb.length === 0){
 			// not found
-			console.log('[Bet #%s] findSitesWithConditions - Aucun site trouvé qui respecte les conditions de base.',betNumber);
+			//console.log('[Bet #%s] findSitesWithConditions - Aucun site trouvé qui respecte les conditions de base.',betNumber);
 			return -1;
 		} else if (bestSitesNb.length === 1){
 			// we rturn that site number
-			console.log('[Bet #%s] findSitesWithConditions - Un seul site trouvé qui respecte les conditions de base : %s',betNumber,sites[bestSitesNb[0]].name);		
+			console.log('[Bet #%s]  - Un seul site trouvé qui respecte les conditions de base : %s',betNumber,sites[bestSitesNb[0]].name);		
 			return bestSitesNb[0];
 
 		} else {
@@ -1710,7 +1742,7 @@ var findSitesWithConditions = function (sites,goal,bonus_type,bonus_status,all_s
 
 			for (var i = 0; i < bestSitesNb.length; i++){
 				var site = sites[bestSitesNb[i]];
-				console.log('checkant for meilleur nb de paris. Site:%s - Nb of Times:%s',site.name,site.times);
+				//console.log('checkant for meilleur nb de paris. Site:%s - Nb of Times:%s',site.name,site.times);
 
 				if ( (isGoalToWin && site.times < bestTimes)
 						|| (!isGoalToWin && site.times > bestTimes) ) {
@@ -1790,8 +1822,8 @@ var findBestSiteWithBonusTypeAndBestGame = function(sites,games,betNumber){
 		var doubleChanceForced = (betNumber === 1 && sites.length <= 2);
 
 		for (let condition of bestSiteConditionsInOrder){
-			console.log('[Bet #%s] Condition',betNumber,condition.desc);
-			var foundIndex = findSitesWithConditions(sites,condition.goal,condition.bonus_type,condition.bonus_status,condition.all_sites,condition.min_bonus_min_odd,condition.min_times,betNumber);
+			//console.log('[Bet #%s] Condition',betNumber,condition.desc);
+			var foundIndex = findSitesWithConditions(sites,condition.desc,condition.goal,condition.bonus_type,condition.bonus_status,condition.all_sites,condition.min_bonus_min_odd,condition.min_times,betNumber);
 			if (foundIndex > -1){
 				// on va essayer de gagner sur ce site
 				chosenSite = sites[foundIndex];
@@ -1850,7 +1882,7 @@ var decideBets = function(chosenSite,otherSites,games,chosenGame,
 	
 	
 	try {
-		console.log('[Bet #%s] begin decideBets',betNumber);
+		//console.log('[Bet #%s] begin decideBets',betNumber);
 		console.log('[Bet #%s] %s : %s - %s',
 		betNumber,moment(chosenGame.date).format('DD MMM'),chosenGame.home_team,chosenGame.away_team);
 		logs.push({type:'pari_important',msg:`Pari ${betNumber} : Match du ${moment(chosenGame.date).format('DD MMM')} entre ${chosenGame.home_team} et ${chosenGame.away_team} `});
@@ -1952,9 +1984,9 @@ var decideBets = function(chosenSite,otherSites,games,chosenGame,
 		// Chosen bet for the other site(s)
 		// ################################
 
-		console.log('chosenOddTypes',chosenOddTypes);
+		//console.log('chosenOddTypes',chosenOddTypes);
 		var otherSitesOddTypes = findOppositeOddTypes(chosenOddTypes);
-		console.log('otherSitesOddTypes',otherSitesOddTypes);
+		//console.log('otherSitesOddTypes',otherSitesOddTypes);
 
 		if (otherSites.length === 1){
 			// un seul autre site, c'est donc un DOUBLE PARI sur un site et deux résultats
